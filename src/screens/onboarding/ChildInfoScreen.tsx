@@ -1,103 +1,232 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  TextInput,
+  Animated,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Picker } from '@react-native-picker/picker';
+import * as Haptics from 'expo-haptics';
+
+import { Button } from '@/components/common/Button';
+import { GenderCard } from '@/components/onboarding';
+import { useOnboarding } from '@/context/OnboardingContext';
 import type { OnboardingStackParamList } from '@/navigation/types';
 
 type Props = {
   navigation: NativeStackNavigationProp<OnboardingStackParamList, 'ChildInfo'>;
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF7ED' },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 32 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#0F766E', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#78716C', marginBottom: 32 },
-  inputGroup: { marginBottom: 24 },
-  label: { fontSize: 14, fontWeight: '500', color: '#0F766E', marginBottom: 8 },
-  textInput: { backgroundColor: 'white', borderWidth: 2, borderColor: '#D1FAE5', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 16 },
-  dateButton: { backgroundColor: 'white', borderWidth: 2, borderColor: '#D1FAE5', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  dateButtonText: { fontSize: 16, color: '#0F766E' },
-  button: { paddingHorizontal: 32, paddingVertical: 16, borderRadius: 9999 },
-  buttonEnabled: { backgroundColor: '#10B981' },
-  buttonDisabled: { backgroundColor: '#78716C' },
-  buttonText: { color: 'white', textAlign: 'center', fontWeight: '600', fontSize: 18 },
-});
-
 export function ChildInfoScreen({ navigation }: Props) {
+  const { updateOnboardingData } = useOnboarding();
   const [childName, setChildName] = useState('');
-  const [birthdate, setBirthdate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [childAge, setChildAge] = useState<number | null>(null);
+  const [childGender, setChildGender] = useState<'boy' | 'girl' | null>(null);
+  const [nameFocused, setNameFocused] = useState(false);
 
-  const handleNext = () => {
-    if (!childName.trim()) {
-      return;
-    }
-    navigation.navigate('Struggles', {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
+  const isValid =
+    childName.trim().length >= 2 && childAge !== null && childGender !== null;
+
+  const handleContinue = () => {
+    if (!isValid) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    updateOnboardingData({
       childName: childName.trim(),
-      birthdate: birthdate.toISOString(),
+      childAge,
+      childGender,
     });
+    navigation.navigate('StruggleSelector');
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+  const handleGenderSelect = (gender: 'boy' | 'girl') => {
+    setChildGender(gender);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Tell Us About Your Little One</Text>
-        <Text style={styles.subtitle}>This helps us personalize your experience</Text>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>What's your child's name?</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="Enter name"
-            value={childName}
-            onChangeText={setChildName}
-            autoCapitalize="words"
-            placeholderTextColor="#78716C"
-          />
-        </View>
-
-        <View style={{ marginBottom: 32 }}>
-          <Text style={styles.label}>When were they born?</Text>
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Text style={styles.dateButtonText}>{formatDate(birthdate)}</Text>
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={birthdate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_, selectedDate) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (selectedDate) setBirthdate(selectedDate);
-              }}
-              maximumDate={new Date()}
-            />
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.button, childName.trim() ? styles.buttonEnabled : styles.buttonDisabled]}
-          onPress={handleNext}
-          activeOpacity={0.8}
-          disabled={!childName.trim()}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.buttonText}>Next →</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.illustrationContainer}>
+            <Image
+              source={require('../../../assets/ONBOARDING-ASSETS/onboarding-child-info.png')}
+              style={styles.illustration}
+              resizeMode="contain"
+            />
+          </View>
+
+          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+            <Text style={styles.heading}>Tell me about your little one</Text>
+
+            {/* Name Input */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={[styles.input, nameFocused && styles.inputFocused]}
+                placeholder="What's their name?"
+                placeholderTextColor="#9CA3AF"
+                value={childName}
+                onChangeText={setChildName}
+                autoCapitalize="words"
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => setNameFocused(false)}
+              />
+            </View>
+
+            {/* Age Picker */}
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={childAge}
+                onValueChange={(value) => setChildAge(value)}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select age" value={null} color="#9CA3AF" />
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((age) => (
+                  <Picker.Item
+                    key={age}
+                    label={
+                      age === 0
+                        ? 'Under 1 year'
+                        : `${age} year${age === 1 ? '' : 's'} old`
+                    }
+                    value={age}
+                  />
+                ))}
+              </Picker>
+            </View>
+
+            {/* Gender Selection */}
+            <Text style={styles.genderLabel}>Gender</Text>
+            <View style={styles.genderContainer}>
+              <GenderCard
+                gender="boy"
+                icon={require('../../../assets/ONBOARDING-ASSETS/gender-boy.png')}
+                selected={childGender === 'boy'}
+                onPress={() => handleGenderSelect('boy')}
+              />
+              <View style={styles.genderSpacer} />
+              <GenderCard
+                gender="girl"
+                icon={require('../../../assets/ONBOARDING-ASSETS/gender-girl.png')}
+                selected={childGender === 'girl'}
+                onPress={() => handleGenderSelect('girl')}
+              />
+            </View>
+
+            {/* Continue Button */}
+            <View style={styles.buttonContainer}>
+              <Button
+                title="Continue"
+                variant={isValid ? 'indigo' : 'disabled'}
+                size="lg"
+                fullWidth
+                disabled={!isValid}
+                onPress={handleContinue}
+              />
+            </View>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFF7ED',
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  illustrationContainer: {
+    height: '30%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  illustration: {
+    width: '80%',
+    height: '100%',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  heading: {
+    fontFamily: 'BricolageGrotesque-Bold',
+    fontSize: 26,
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  input: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    color: '#1F2937',
+  },
+  inputFocused: {
+    borderColor: '#6366F1',
+  },
+  pickerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+  },
+  genderLabel: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  genderSpacer: {
+    width: 12,
+  },
+  buttonContainer: {
+    marginTop: 'auto',
+    paddingBottom: 16,
+  },
+});

@@ -1,0 +1,234 @@
+/**
+ * DayNode Component
+ *
+ * A 3D "chunky" style circular button representing a single day
+ * in the journey path. Features Duolingo-style depth shadow,
+ * glossy highlight, and animated press feedback.
+ */
+
+import React, { memo, useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import type { DayStatus } from '@/types/journey';
+import {
+  JourneySizes,
+  JourneyAnimations,
+  NodeGradients,
+  NodeShadowColors,
+  NodeTextColors,
+  JourneyColors,
+} from '@/constants/journeyTokens';
+import { lightHaptic } from '@/utils/haptics';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface DayNodeProps {
+  dayNumber: number;
+  status: DayStatus;
+  onPress: () => void;
+  testID?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const { nodeSize, nodeShadowHeight, nodeGlowSize } = JourneySizes;
+const { pressSpring, pressScale, glowPulseDuration } = JourneyAnimations;
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+function DayNodeComponent({ dayNumber, status, onPress, testID }: DayNodeProps) {
+  // Animation values
+  const scale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0.4);
+  const glowScale = useSharedValue(1);
+
+  // Glow animation for "today" node
+  useEffect(() => {
+    if (status === 'today') {
+      // Pulsing glow effect
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: glowPulseDuration, easing: Easing.inOut(Easing.ease) }),
+          withTiming(0.4, { duration: glowPulseDuration, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+      glowScale.value = withRepeat(
+        withSequence(
+          withTiming(1.1, { duration: glowPulseDuration, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: glowPulseDuration, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+    } else {
+      // Reset glow for non-today nodes
+      glowOpacity.value = withTiming(0);
+      glowScale.value = withTiming(1);
+    }
+  }, [status, glowOpacity, glowScale]);
+
+  // Press handlers
+  const handlePressIn = () => {
+    scale.value = withSpring(pressScale, pressSpring);
+    lightHaptic();
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, pressSpring);
+  };
+
+  // Animated styles
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [{ scale: glowScale.value }],
+  }));
+
+  // Get colors based on status
+  const gradientColors = NodeGradients[status];
+  const shadowColor = NodeShadowColors[status];
+  const textColor = NodeTextColors[status];
+
+  // Disabled state for locked nodes
+  const isDisabled = status === 'locked';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={isDisabled}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={`Day ${dayNumber}${status === 'today' ? ', today' : ''}`}
+      accessibilityState={{ disabled: isDisabled }}
+    >
+      <Animated.View style={[styles.container, animatedContainerStyle]}>
+        {/* Glow effect for today */}
+        {status === 'today' && (
+          <Animated.View style={[styles.glowEffect, animatedGlowStyle]} />
+        )}
+
+        {/* Node wrapper with shadow */}
+        <View style={styles.nodeWrapper}>
+          {/* Main circle with gradient */}
+          <LinearGradient
+            colors={[...gradientColors]}
+            style={styles.node}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          >
+            {/* Glossy highlight overlay */}
+            <View style={styles.glossyHighlight} />
+
+            {/* Day number */}
+            <Text style={[styles.dayNumber, { color: textColor }]}>
+              {dayNumber}
+            </Text>
+          </LinearGradient>
+
+          {/* 3D Shadow/Depth effect */}
+          <View style={[styles.shadowLayer, { backgroundColor: shadowColor }]} />
+        </View>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const styles = StyleSheet.create({
+  container: {
+    width: nodeSize,
+    height: nodeSize + nodeShadowHeight,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  glowEffect: {
+    position: 'absolute',
+    width: nodeGlowSize,
+    height: nodeGlowSize,
+    borderRadius: nodeGlowSize / 2,
+    backgroundColor: JourneyColors.nodeGoldGlow,
+    top: (nodeSize - nodeGlowSize) / 2,
+    left: (nodeSize - nodeGlowSize) / 2,
+    // Glow shadow
+    shadowColor: JourneyColors.nodeGoldGlow,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  nodeWrapper: {
+    width: nodeSize,
+    height: nodeSize + nodeShadowHeight,
+    position: 'relative',
+  },
+  node: {
+    width: nodeSize,
+    height: nodeSize,
+    borderRadius: nodeSize / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    zIndex: 2,
+  },
+  glossyHighlight: {
+    position: 'absolute',
+    top: 4,
+    left: 10,
+    right: 10,
+    height: nodeSize * 0.32,
+    backgroundColor: JourneyColors.glossyHighlight,
+    borderRadius: nodeSize / 2,
+  },
+  dayNumber: {
+    fontSize: 22,
+    fontWeight: '700',
+    fontFamily: 'Poppins-Bold',
+    zIndex: 3,
+    // Text shadow for depth
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  shadowLayer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: nodeSize,
+    height: nodeSize,
+    borderRadius: nodeSize / 2,
+    zIndex: 1,
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+export const DayNode = memo(DayNodeComponent);

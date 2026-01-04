@@ -1,32 +1,68 @@
 import React, { useEffect } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
+import { OnboardingProvider } from '@/context/OnboardingContext';
+import { COLORS } from '@/constants/colors';
 import { useAuthStore } from '@/store/authStore';
-import type { RootStackParamList, OnboardingStackParamList, MainTabParamList } from './types';
+import type {
+  MainTabParamList,
+  OnboardingStackParamList,
+  RootStackParamList,
+} from './types';
 
 // Screens
-import { TodayScreen } from '@/screens/TodayScreen';
 import { ChatScreen } from '@/screens/ChatScreen';
-import { JourneyScreen } from '@/screens/JourneyScreen';
+import { DayDetailScreen } from '@/screens/DayDetailScreen';
+import { GardenScreen } from '@/screens/GardenScreen';
+import { JourneyScreen } from '@/screens/JourneyScreenNew';
 import { LibraryScreen } from '@/screens/LibraryScreen';
+import { ModuleDetailScreen } from '@/screens/ModuleDetailScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { TodayScreen } from '@/screens/TodayScreen';
 import {
-  WelcomeScreen,
   ChildInfoScreen,
-  StrugglesScreen,
-  CurrentHabitsScreen,
-  NotificationTimeScreen,
-  ReadyScreen,
+  StruggleSelectorScreen,
+  WelcomeScreen,
 } from '@/screens/onboarding';
-
-import { COLORS } from '@/constants/colors';
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();
+
+const TAB_ICON_SIZE = 28;
+
+const TAB_ICONS: Record<keyof MainTabParamList, ImageSourcePropType> = {
+  Today: require('../../assets/ONBOARDING-ASSETS/icons/today.png'),
+  Chat: require('../../assets/ONBOARDING-ASSETS/icons/chat.png'),
+  Garden: require('../../assets/ONBOARDING-ASSETS/icons/garden.png'),
+  Journey: require('../../assets/ONBOARDING-ASSETS/icons/journey.png'),
+  Library: require('../../assets/ONBOARDING-ASSETS/icons/library.png'),
+};
+
+function TabIcon({
+  focused,
+  routeName,
+}: {
+  focused: boolean;
+  routeName: keyof MainTabParamList;
+}) {
+  return (
+    <Image
+      source={TAB_ICONS[routeName]}
+      style={{
+        width: TAB_ICON_SIZE,
+        height: TAB_ICON_SIZE,
+        opacity: focused ? 1 : 0.55,
+        transform: [{ scale: focused ? 1.06 : 1 }],
+      }}
+      resizeMode="contain"
+    />
+  );
+}
 
 const loadingStyles = StyleSheet.create({
   container: {
@@ -34,10 +70,6 @@ const loadingStyles = StyleSheet.create({
     backgroundColor: '#FFF7ED',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emoji: {
-    fontSize: 48,
-    marginBottom: 16,
   },
   title: {
     fontSize: 24,
@@ -50,7 +82,6 @@ const loadingStyles = StyleSheet.create({
 function LoadingScreen() {
   return (
     <View style={loadingStyles.container}>
-      <Text style={loadingStyles.emoji}>🌙</Text>
       <Text style={loadingStyles.title}>Noor</Text>
       <ActivityIndicator size="large" color={COLORS.EMERALD} />
     </View>
@@ -59,19 +90,21 @@ function LoadingScreen() {
 
 function OnboardingNavigator() {
   return (
-    <OnboardingStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_right',
-      }}
-    >
-      <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
-      <OnboardingStack.Screen name="ChildInfo" component={ChildInfoScreen} />
-      <OnboardingStack.Screen name="Struggles" component={StrugglesScreen} />
-      <OnboardingStack.Screen name="CurrentHabits" component={CurrentHabitsScreen} />
-      <OnboardingStack.Screen name="NotificationTime" component={NotificationTimeScreen} />
-      <OnboardingStack.Screen name="Ready" component={ReadyScreen} />
-    </OnboardingStack.Navigator>
+    <OnboardingProvider>
+      <OnboardingStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
+        <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
+        <OnboardingStack.Screen name="ChildInfo" component={ChildInfoScreen} />
+        <OnboardingStack.Screen
+          name="StruggleSelector"
+          component={StruggleSelectorScreen}
+        />
+      </OnboardingStack.Navigator>
+    </OnboardingProvider>
   );
 }
 
@@ -91,7 +124,8 @@ function MainNavigator() {
         tabBarActiveTintColor: COLORS.EMERALD,
         tabBarInactiveTintColor: COLORS.WARM_GRAY,
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
+          fontFamily: 'Inter-Medium',
         },
       }}
     >
@@ -100,7 +134,9 @@ function MainNavigator() {
         component={TodayScreen}
         options={{
           tabBarLabel: 'Today',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>🌟</Text>,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} routeName="Today" />
+          ),
         }}
       />
       <MainTab.Screen
@@ -108,7 +144,19 @@ function MainNavigator() {
         component={ChatScreen}
         options={{
           tabBarLabel: 'Chat',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>💬</Text>,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} routeName="Chat" />
+          ),
+        }}
+      />
+      <MainTab.Screen
+        name="Garden"
+        component={GardenScreen}
+        options={{
+          tabBarLabel: 'Garden',
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} routeName="Garden" />
+          ),
         }}
       />
       <MainTab.Screen
@@ -116,7 +164,9 @@ function MainNavigator() {
         component={JourneyScreen}
         options={{
           tabBarLabel: 'Journey',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>📸</Text>,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} routeName="Journey" />
+          ),
         }}
       />
       <MainTab.Screen
@@ -124,15 +174,9 @@ function MainNavigator() {
         component={LibraryScreen}
         options={{
           tabBarLabel: 'Library',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>📚</Text>,
-        }}
-      />
-      <MainTab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarLabel: 'Settings',
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 24, color }}>⚙️</Text>,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} routeName="Library" />
+          ),
         }}
       />
     </MainTab.Navigator>
@@ -148,12 +192,10 @@ export function RootNavigator() {
     initialize();
   }, [initialize]);
 
-  // Show loading while initializing
   if (!isInitialized) {
     return <LoadingScreen />;
   }
 
-  // Determine if onboarding is complete
   const showOnboarding = !profile?.onboarding_completed;
 
   return (
@@ -166,13 +208,40 @@ export function RootNavigator() {
             options={{ gestureEnabled: false }}
           />
         ) : (
-          <RootStack.Screen
-            name="Main"
-            component={MainNavigator}
-            options={{ gestureEnabled: false }}
-          />
+          <>
+            <RootStack.Screen
+              name="Main"
+              component={MainNavigator}
+              options={{ gestureEnabled: false }}
+            />
+            <RootStack.Screen
+              name="ModuleDetail"
+              component={ModuleDetailScreen}
+              options={{
+                animation: 'slide_from_right',
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="DayDetail"
+              component={DayDetailScreen}
+              options={{
+                animation: 'slide_from_right',
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{
+                animation: 'slide_from_bottom',
+                presentation: 'modal',
+              }}
+            />
+          </>
         )}
       </RootStack.Navigator>
     </NavigationContainer>
   );
 }
+

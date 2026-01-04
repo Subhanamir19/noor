@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Button, OutlineButton } from '@/components/common/Button';
 import { useAuthStore } from '@/store/authStore';
 
 const styles = StyleSheet.create({
@@ -12,13 +13,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   label: { color: '#78716C' },
   value: { color: '#0F766E', fontWeight: '500' },
-  actionButton: { backgroundColor: '#D1FAE5', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  actionButtonText: { color: '#0F766E', fontWeight: '500' },
   premiumCard: { backgroundColor: 'rgba(245, 158, 11, 0.2)', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#F59E0B' },
   premiumTitle: { fontSize: 18, fontWeight: '600', color: '#0F766E', marginBottom: 8 },
   premiumDescription: { color: '#78716C', marginBottom: 12 },
-  premiumButton: { backgroundColor: '#F59E0B', paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8 },
-  premiumButtonText: { color: 'white', fontWeight: '500', textAlign: 'center' },
   footer: { alignItems: 'center', paddingVertical: 24 },
   version: { color: '#78716C', fontSize: 14 },
   tagline: { color: '#78716C', fontSize: 12, marginTop: 4 },
@@ -84,30 +81,23 @@ export function SettingsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Actions</Text>
-          <TouchableOpacity
-            style={styles.actionButton}
+          <OutlineButton
+            title="Redo Onboarding"
             onPress={handleRedoOnboarding}
-            disabled={isResetting}
-            activeOpacity={0.7}
-          >
-            {isResetting ? (
-              <ActivityIndicator color="#0F766E" size="small" />
-            ) : (
-              <Text style={styles.actionButtonText}>Redo Onboarding</Text>
-            )}
-          </TouchableOpacity>
+            loading={isResetting}
+            fullWidth
+          />
         </View>
 
         <View style={styles.premiumCard}>
           <Text style={styles.premiumTitle}>Noor Premium</Text>
           <Text style={styles.premiumDescription}>Unlock all features and support our mission</Text>
-          <TouchableOpacity
-            style={styles.premiumButton}
-            activeOpacity={0.7}
+          <Button
+            title="Upgrade to Premium"
+            variant="warning"
             onPress={() => Alert.alert('Coming Soon', 'Premium features are coming soon!')}
-          >
-            <Text style={styles.premiumButtonText}>Upgrade to Premium</Text>
-          </TouchableOpacity>
+            fullWidth
+          />
         </View>
 
         <View style={styles.footer}>

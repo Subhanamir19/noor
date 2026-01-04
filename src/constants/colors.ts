@@ -7,6 +7,11 @@ export const COLORS = {
   CORAL: '#FB923C',
   DEEP_TEAL: '#0F766E',
   WARM_GRAY: '#78716C',
+  // Soft blush pink theme
+  PINK_BG: '#FFF0F5',
+  PINK_LIGHT: '#FFE4EC',
+  PINK_MEDIUM: '#FFB6C1',
+  PINK_ACCENT: '#FF69B4',
 } as const;
 
 export type ColorKey = keyof typeof COLORS;

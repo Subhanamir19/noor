@@ -1,40 +1,22 @@
 export type OnboardingStackParamList = {
   Welcome: undefined;
   ChildInfo: undefined;
-  Struggles: {
-    childName: string;
-    birthdate: string;
-  };
-  CurrentHabits: {
-    childName: string;
-    birthdate: string;
-    struggles: string[];
-  };
-  NotificationTime: {
-    childName: string;
-    birthdate: string;
-    struggles: string[];
-    currentHabits: string[];
-  };
-  Ready: {
-    childName: string;
-    birthdate: string;
-    struggles: string[];
-    currentHabits: string[];
-    missionTime: string;
-  };
+  StruggleSelector: undefined;
 };
 
 export type MainTabParamList = {
   Today: undefined;
-  Chat: undefined;
+  Chat: { initialMessage?: string } | undefined;
+  Garden: undefined;
   Journey: undefined;
   Library: undefined;
-  Settings: undefined;
 };
 
 export type RootStackParamList = {
   Loading: undefined;
   Onboarding: undefined;
   Main: undefined;
+  ModuleDetail: { moduleId: string };
+  DayDetail: { date: string; dailyTraitId?: string };
+  Settings: undefined;
 };

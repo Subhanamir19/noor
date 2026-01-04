@@ -1,94 +1,159 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '@/store/authStore';
+import { format } from 'date-fns';
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFF7ED' },
-  scrollContent: { flex: 1, paddingHorizontal: 24, paddingTop: 16 },
-  daysContainer: { alignItems: 'center', marginBottom: 32 },
-  daysCount: { color: '#F59E0B', fontSize: 48, fontWeight: 'bold' },
-  daysLabel: { color: '#0F766E', fontSize: 18 },
-  childName: { color: '#78716C' },
-  connectionCard: { backgroundColor: '#D1FAE5', borderRadius: 12, padding: 16, marginBottom: 24, alignItems: 'center' },
-  connectionEmoji: { fontSize: 30, marginBottom: 8 },
-  connectionLabel: { color: '#0F766E', fontWeight: '500' },
-  progressBarBg: { width: '100%', backgroundColor: '#FFF7ED', borderRadius: 9999, height: 12, marginTop: 8 },
-  progressBarFill: { backgroundColor: '#10B981', height: 12, borderRadius: 9999, width: '10%' },
-  levelText: { color: '#78716C', fontSize: 14, marginTop: 4 },
-  photoCard: { backgroundColor: 'white', borderRadius: 12, padding: 24, marginBottom: 16, borderWidth: 2, borderColor: '#FDA4AF', alignItems: 'center' },
-  photoTitle: { fontSize: 18, color: '#0F766E', fontWeight: '500', marginBottom: 8 },
-  photoButton: { backgroundColor: '#FDA4AF', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 9999 },
-  photoButtonText: { color: 'white', fontWeight: '500' },
-  weekLabel: { color: '#0F766E', fontWeight: '500', marginBottom: 12 },
-  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
-  dayContainer: { alignItems: 'center' },
-  dayBox: { width: 40, height: 40, backgroundColor: '#D1FAE5', borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  dayPlaceholder: { color: '#78716C' },
-  dayName: { fontSize: 12, color: '#78716C' },
-  badgesLabel: { color: '#0F766E', fontWeight: '500', marginBottom: 12 },
-  badgesRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  badge: { backgroundColor: 'white', borderRadius: 12, padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#D1FAE5', opacity: 0.5 },
-  badgeEmoji: { fontSize: 24 },
-  badgeLabel: { fontSize: 12, color: '#78716C', marginTop: 4 },
-});
+import {
+  BadgesDisplay,
+  ConnectionDepthBar,
+  DaysCounter,
+  PhotoDetailModal,
+  PhotoPromptCard,
+  WeekTimeline,
+} from '@/components/journey';
+import { OutlineButton } from '@/components/common/Button';
+import { useAuthStore } from '@/store/authStore';
+import { useJourneyStore } from '@/store/journeyStore';
+import type { JourneyPhoto } from '@/types/models';
 
 export function JourneyScreen() {
+  // Auth state
+  const user = useAuthStore((state) => state.user);
   const profile = useAuthStore((state) => state.profile);
 
+  // Journey state
+  const photos = useJourneyStore((state) => state.photos);
+  const badges = useJourneyStore((state) => state.badges);
+  const totalDays = useJourneyStore((state) => state.totalDays);
+  const connectionDepth = useJourneyStore((state) => state.connectionDepth);
+  const isLoading = useJourneyStore((state) => state.isLoading);
+  const loadJourney = useJourneyStore((state) => state.loadJourney);
+  const addPhoto = useJourneyStore((state) => state.addPhoto);
+
+  // Local state
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<JourneyPhoto | null>(null);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+
+  // Load journey data on mount
+  useEffect(() => {
+    if (user?.id) {
+      loadJourney(user.id);
+    }
+  }, [user?.id, loadJourney]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!user?.id) return;
+    setRefreshing(true);
+    await loadJourney(user.id);
+    setRefreshing(false);
+  }, [user?.id, loadJourney]);
+
+  const handlePhotoSelected = useCallback(
+    async (uri: string) => {
+      if (!user?.id) return;
+
+      try {
+        await addPhoto(user.id, uri);
+        Alert.alert('Success!', 'Your moment has been captured 💚');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to add photo';
+        Alert.alert('Oops!', message);
+      }
+    },
+    [user?.id, addPhoto]
+  );
+
+  const handlePhotoPress = useCallback((photo: JourneyPhoto) => {
+    setSelectedPhoto(photo);
+    setShowPhotoModal(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setShowPhotoModal(false);
+    setSelectedPhoto(null);
+  }, []);
+
+  // Check if photo captured today
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const capturedToday = photos.some((p) => p.photo_date === today);
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scrollContent}>
-        <View style={styles.daysContainer}>
-          <Text style={styles.daysCount}>0</Text>
-          <Text style={styles.daysLabel}>Days Together</Text>
-          <Text style={styles.childName}>with little {profile?.child_name || 'one'}</Text>
+    <SafeAreaView className="flex-1 bg-cream" edges={['top']}>
+      <ScrollView
+        className="flex-1"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#10B981"
+          />
+        }
+      >
+        <View className="px-6 pt-6">
+          {/* Days Counter */}
+          <DaysCounter
+            totalDays={totalDays}
+            childName={profile?.child_name ?? undefined}
+          />
+
+          {/* Connection Depth */}
+          <ConnectionDepthBar connectionDepth={connectionDepth} />
+
+          {/* Photo Prompt */}
+          <PhotoPromptCard
+            onPhotoSelected={handlePhotoSelected}
+            alreadyCapturedToday={capturedToday}
+          />
         </View>
 
-        <View style={styles.connectionCard}>
-          <Text style={styles.connectionEmoji}>🌱</Text>
-          <Text style={styles.connectionLabel}>Connection Depth</Text>
-          <View style={styles.progressBarBg}>
-            <View style={styles.progressBarFill} />
-          </View>
-          <Text style={styles.levelText}>Level 1 - Just Beginning</Text>
-        </View>
+        {/* Week Timeline */}
+        <WeekTimeline photos={photos} onPhotoPress={handlePhotoPress} />
 
-        <View style={styles.photoCard}>
-          <Text style={styles.photoTitle}>Capture Today's Moment</Text>
-          <TouchableOpacity style={styles.photoButton}>
-            <Text style={styles.photoButtonText}>Take Photo 📸</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Badges */}
+        <BadgesDisplay badges={badges} />
 
-        <Text style={styles.weekLabel}>This Week's Story</Text>
-        <View style={styles.weekRow}>
-          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-            <View key={day} style={styles.dayContainer}>
-              <View style={styles.dayBox}>
-                <Text style={styles.dayPlaceholder}>?</Text>
-              </View>
-              <Text style={styles.dayName}>{day}</Text>
-            </View>
-          ))}
-        </View>
+        {/* View Full Timeline */}
+        {totalDays > 7 && (
+          <View className="px-6 mb-6">
+            <OutlineButton
+              title="View Full Timeline"
+              onPress={() => {}}
+              fullWidth
+            />
+          </View>
+        )}
 
-        <Text style={styles.badgesLabel}>Your Badges</Text>
-        <View style={styles.badgesRow}>
-          <View style={styles.badge}>
-            <Text style={styles.badgeEmoji}>🔥</Text>
-            <Text style={styles.badgeLabel}>7 Days</Text>
+        {/* Empty state */}
+        {totalDays === 0 && !isLoading && (
+          <View className="px-6 py-8 items-center">
+            <Text className="text-4xl mb-4">📸</Text>
+            <Text className="text-xl font-poppinsSemiBold text-teal text-center mb-2">
+              Start Your Journey Today
+            </Text>
+            <Text className="text-base font-interRegular text-warmGray text-center">
+              Capture a moment with your little one and watch your connection
+              grow
+            </Text>
           </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeEmoji}>💪</Text>
-            <Text style={styles.badgeLabel}>Asked Help</Text>
-          </View>
-          <View style={styles.badge}>
-            <Text style={styles.badgeEmoji}>🌱</Text>
-            <Text style={styles.badgeLabel}>Tried New</Text>
-          </View>
-        </View>
+        )}
+
+        {/* Bottom spacing */}
+        <View className="h-8" />
       </ScrollView>
+
+      {/* Photo Detail Modal */}
+      <PhotoDetailModal
+        visible={showPhotoModal}
+        photo={selectedPhoto}
+        onClose={handleCloseModal}
+      />
     </SafeAreaView>
   );
 }
