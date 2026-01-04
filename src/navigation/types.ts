@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type OnboardingStackParamList = {
   Welcome: undefined;
   ChildInfo: undefined;
@@ -15,8 +17,9 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Loading: undefined;
   Onboarding: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   ModuleDetail: { moduleId: string };
   DayDetail: { date: string; dailyTraitId?: string };
+  DailyTaskDetail: { taskId: string };
   Settings: undefined;
 };

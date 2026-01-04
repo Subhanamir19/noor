@@ -2461,7 +2461,8 @@ export function selectTasksForToday(
   childAge: 'baby' | 'toddler' | 'child' | 'all',
   dayTaskCount: number = 3,
   niceToHaveCount: number = 4,
-  completedTaskIds: string[] = []
+  completedTaskIds: string[] = [],
+  seedKey?: string
 ): NewDailyTaskSelection {
   // Filter by age
   const ageAppropriate = ALL_DAILY_TASKS.filter(
@@ -2473,18 +2474,60 @@ export function selectTasksForToday(
   const niceToHavePool = ageAppropriate.filter((t) => t.display_type === 'nice_to_have');
 
   // Prioritize fresh tasks
-  const sortByFreshness = (tasks: DailyTask[]) => {
+  const sortByFreshness = (tasks: DailyTask[], poolKey: string) => {
     const fresh = tasks.filter((t) => !completedTaskIds.includes(t.id));
     const completed = tasks.filter((t) => completedTaskIds.includes(t.id));
+    if (seedKey) {
+      return [
+        ...shuffleArrayDeterministic(fresh, `${seedKey}|${poolKey}|fresh`),
+        ...shuffleArrayDeterministic(completed, `${seedKey}|${poolKey}|completed`),
+      ];
+    }
     return [...shuffleArray(fresh), ...shuffleArray(completed)];
   };
 
-  const sortedDayTasks = sortByFreshness(dayTaskPool);
-  const sortedNiceToHave = sortByFreshness(niceToHavePool);
+  const sortedDayTasks = sortByFreshness(dayTaskPool, 'day_tasks');
+  const sortedNiceToHave = sortByFreshness(niceToHavePool, 'nice_to_have');
 
   return {
     dayTasks: sortedDayTasks.slice(0, dayTaskCount),
     niceToHaveTasks: sortedNiceToHave.slice(0, niceToHaveCount),
+  };
+}
+
+/**
+ * Deterministic shuffle using a seed key (stable across app restarts/devices).
+ * Keeps selection reproducible for a given seedKey.
+ */
+function shuffleArrayDeterministic<T>(array: T[], seedKey: string): T[] {
+  const shuffled = [...array];
+  let seed = fnv1a32(seedKey);
+  const rand = mulberry32(seed);
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function fnv1a32(input: string): number {
+  // 32-bit FNV-1a hash
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    // Multiply by FNV prime with uint32 overflow.
+    hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
   };
 }
 

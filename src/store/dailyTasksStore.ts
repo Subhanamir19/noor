@@ -102,7 +102,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               existingSelection.bonus_task_id,
             ].filter(Boolean);
 
-            const niceToHaveIds: string[] = existingSelection.optional_task_ids || [];
+            const niceToHaveIds: string[] = (existingSelection.optional_task_ids || []).slice(0, 4);
 
             const dayTasks = dayTaskIds
               .map((id: string) => getTaskById(id))
@@ -112,6 +112,50 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               .map((id: string) => getTaskById(id))
               .filter((t: DailyTask | undefined): t is DailyTask => t !== undefined);
 
+            // If older data is incomplete/out-of-date, deterministically fill to 3 + 4 and persist.
+            const needsFill = dayTasks.length < 3 || niceToHaveTasks.length < 4;
+            if (needsFill) {
+              const recentCompletedIds = await getRecentlyCompletedTaskIds(userId);
+              const selection = selectTasksForToday(
+                state.childAge,
+                3,
+                4,
+                recentCompletedIds,
+                `${userId}|${today}`
+              );
+
+              const filledDayTasks: DailyTask[] = [];
+              for (const t of [...dayTasks, ...selection.dayTasks]) {
+                if (!t || filledDayTasks.some((x) => x.id === t.id)) continue;
+                filledDayTasks.push(t);
+                if (filledDayTasks.length === 3) break;
+              }
+
+              const filledNiceToHave: DailyTask[] = [];
+              for (const t of [...niceToHaveTasks, ...selection.niceToHaveTasks]) {
+                if (!t || filledNiceToHave.some((x) => x.id === t.id)) continue;
+                filledNiceToHave.push(t);
+                if (filledNiceToHave.length === 4) break;
+              }
+
+              await supabase.from('daily_task_selections').upsert(
+                {
+                  user_id: userId,
+                  selection_date: today,
+                  primary_task_id: filledDayTasks[0]?.id || '',
+                  quick_win_task_id: filledDayTasks[1]?.id || '',
+                  bonus_task_id: filledDayTasks[2]?.id || '',
+                  optional_task_ids: filledNiceToHave.map((t) => t.id),
+                  task_count: filledDayTasks.length + filledNiceToHave.length,
+                },
+                { onConflict: 'user_id,selection_date' }
+              );
+
+              set({
+                todaysTasks: { dayTasks: filledDayTasks, niceToHaveTasks: filledNiceToHave },
+                isLoading: false,
+              });
+            } else {
             set({
               todaysTasks: {
                 dayTasks,
@@ -119,6 +163,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               },
               isLoading: false,
             });
+            }
           } else {
             // Generate new selection for today
             const recentCompletedIds = await getRecentlyCompletedTaskIds(userId);
@@ -126,7 +171,8 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               state.childAge,
               state.preferredDayTaskCount,
               state.preferredNiceToHaveCount,
-              recentCompletedIds
+              recentCompletedIds,
+              `${userId}|${today}`
             );
 
             // Save selection to database using legacy schema
@@ -291,7 +337,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
             newFeedback,
           ].slice(-7); // Keep last 7 days
 
-          // Calculate new recommended task count
+          // Keep the daily deck stable: 3 must-to-do + 4 nice-to-have.
           const newPreferredCount = calculateRecommendedTaskCount(
             updatedFeedback.map((f) => ({
               rating: f.rating,
@@ -299,14 +345,10 @@ export const useDailyTasksStore = create<DailyTasksState>()(
             }))
           );
 
-          // Distribute between day tasks and nice to have
-          const newDayTaskCount = Math.min(3, Math.ceil(newPreferredCount * 0.4));
-          const newNiceToHaveCount = newPreferredCount - newDayTaskCount;
-
           set({
             recentFeedback: updatedFeedback,
-            preferredDayTaskCount: newDayTaskCount,
-            preferredNiceToHaveCount: newNiceToHaveCount,
+            preferredDayTaskCount: 3,
+            preferredNiceToHaveCount: 4,
           });
 
           // Save preference to database
@@ -331,22 +373,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
 
       // Refresh tasks (force regeneration)
       refreshTasks: async (userId: string) => {
-        const today = format(new Date(), 'yyyy-MM-dd');
-
-        // Reset to default counts (3 day tasks, 4 nice to have)
-        set({
-          preferredDayTaskCount: 3,
-          preferredNiceToHaveCount: 4,
-        });
-
-        // Delete today's selection to force regeneration
-        await supabase
-          .from('daily_task_selections')
-          .delete()
-          .eq('user_id', userId)
-          .eq('selection_date', today);
-
-        // Reload
+        // Refresh should re-fetch today's selection + completions without changing the set.
         await get().loadTodaysTasks(userId);
       },
 

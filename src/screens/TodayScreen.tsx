@@ -22,8 +22,7 @@ import {
 import { ChallengeList, CoachingModal, WellnessIndicator } from '@/components/coaching';
 import { AyahOverlay, useAyahOverlay } from '@/components/today/AyahOverlay';
 import { DailyFeedbackModal } from '@/components/today/DailyFeedbackModal';
-import { DailyTaskDetailModal } from '@/components/today/DailyTaskDetailModal';
-import { DailyTasksSection } from '@/components/today/DailyTasksSection';
+import { DailyTaskCardsSection } from '@/components/today/DailyTaskCardsSection';
 import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/store/authStore';
 import { useCharacterStore } from '@/store/characterStore';
@@ -82,8 +81,7 @@ export function TodayScreen({ navigation }: Props) {
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDailyTask, setSelectedDailyTask] = useState<DailyTask | null>(null);
-  const [showDailyTaskModal, setShowDailyTaskModal] = useState(false);
+  const [isDeckInteracting, setIsDeckInteracting] = useState(false);
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Scroll animation for blur effect
@@ -160,8 +158,7 @@ export function TodayScreen({ navigation }: Props) {
 
   // Daily task handlers
   const handleDailyTaskPress = (task: DailyTask) => {
-    setSelectedDailyTask(task);
-    setShowDailyTaskModal(true);
+    navigation.navigate('DailyTaskDetail', { taskId: task.id });
   };
 
   const handleDailyTaskComplete = async (taskId: string, isCompleted: boolean) => {
@@ -176,23 +173,6 @@ export function TodayScreen({ navigation }: Props) {
   const handleDailyTaskRefresh = async () => {
     if (!user?.id) return;
     await refreshDailyTasks(user.id);
-  };
-
-  const handleDailyTaskAskAI = () => {
-    setShowDailyTaskModal(false);
-    navigation.navigate('Chat', {
-      initialMessage: `I'm trying to "${selectedDailyTask?.title}" but I need help. Can you guide me?`,
-    });
-  };
-
-  const handleDailyTaskModalComplete = async () => {
-    if (!user?.id || !selectedDailyTask) return;
-    const isCompleted = dailyTaskCompletions[selectedDailyTask.id] || false;
-    if (isCompleted) {
-      await uncompleteDailyTask(user.id, selectedDailyTask.id);
-    } else {
-      await completeDailyTask(user.id, selectedDailyTask.id);
-    }
   };
 
   const handleSubmitFeedback = async (rating: DailyFeedbackRating) => {
@@ -245,6 +225,7 @@ export function TodayScreen({ navigation }: Props) {
             { useNativeDriver: true }
           )}
           scrollEventThrottle={16}
+          scrollEnabled={!isDeckInteracting}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -351,13 +332,14 @@ export function TodayScreen({ navigation }: Props) {
             />
 
             {/* Daily Tasks Section - Main content */}
-            <DailyTasksSection
+            <DailyTaskCardsSection
               todaysTasks={todaysTasks}
               completions={dailyTaskCompletions}
               completionPercentage={dailyTaskPercentage}
               onTaskPress={handleDailyTaskPress}
               onTaskComplete={handleDailyTaskComplete}
               onRefresh={handleDailyTaskRefresh}
+              onDeckInteractionChange={setIsDeckInteracting}
             />
           </View>
 
@@ -365,20 +347,6 @@ export function TodayScreen({ navigation }: Props) {
           <View style={{ height: 100 }} />
         </Animated.ScrollView>
       </SafeAreaView>
-
-      <DailyTaskDetailModal
-        visible={showDailyTaskModal}
-        task={selectedDailyTask}
-        isCompleted={
-          selectedDailyTask ? dailyTaskCompletions[selectedDailyTask.id] || false : false
-        }
-        onClose={() => {
-          setShowDailyTaskModal(false);
-          setSelectedDailyTask(null);
-        }}
-        onComplete={handleDailyTaskModalComplete}
-        onAskAI={handleDailyTaskAskAI}
-      />
 
       <DailyFeedbackModal
         visible={showFeedbackModal}

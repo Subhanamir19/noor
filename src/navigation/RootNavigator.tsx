@@ -21,6 +21,7 @@ import { GardenScreen } from '@/screens/GardenScreen';
 import { JourneyScreen } from '@/screens/JourneyScreenNew';
 import { LibraryScreen } from '@/screens/LibraryScreen';
 import { ModuleDetailScreen } from '@/screens/ModuleDetailScreen';
+import { DailyTaskDetailScreen } from '@/screens/DailyTaskDetailScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
 import {
@@ -231,6 +232,14 @@ export function RootNavigator() {
               }}
             />
             <RootStack.Screen
+              name="DailyTaskDetail"
+              component={DailyTaskDetailScreen}
+              options={{
+                animation: 'slide_from_right',
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
               name="Settings"
               component={SettingsScreen}
               options={{
@@ -244,4 +253,3 @@ export function RootNavigator() {
     </NavigationContainer>
   );
 }
-
