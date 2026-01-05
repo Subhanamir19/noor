@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ImageBackground, Text, View, useWindowDimensions } from 'react-native';
+import { ImageBackground, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -25,6 +25,12 @@ interface Props {
 
 const CARD_RADIUS = 28;
 const CARD_BORDER = 3;
+const CARD_PADDING = 16;
+const CARD_SHADOW_HEIGHT = 6;
+
+const FONT_BRICOLAGE_BOLD = 'BricolageGrotesque-Bold';
+const FONT_BRICOLAGE_SEMIBOLD = 'BricolageGrotesque-SemiBold';
+const FONT_POPPINS_SEMIBOLD = 'Poppins-SemiBold';
 
 const springConfig = {
   damping: 19,
@@ -57,89 +63,139 @@ function DeckCard({
   onToggleComplete: () => void;
 }) {
   const theme = getDailyTaskTheme(task);
+  const title = task.shortTitle || task.title;
 
   return (
     <View
       style={{
         width: cardWidth,
         height: cardHeight,
-        borderRadius: CARD_RADIUS,
-        overflow: 'hidden',
-        backgroundColor: theme.themeColor,
-        borderWidth: CARD_BORDER,
-        borderColor: 'rgba(0,0,0,0.08)',
       }}
     >
-      <ImageBackground
-        source={theme.image}
-        resizeMode="cover"
-        style={{ flex: 1 }}
+      <View
+        style={{
+          position: 'absolute',
+          top: CARD_SHADOW_HEIGHT,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderRadius: CARD_RADIUS,
+          backgroundColor: 'rgba(0,0,0,0.10)',
+        }}
+      />
+      <View
+        style={{
+          flex: 1,
+          borderRadius: CARD_RADIUS,
+          overflow: 'hidden',
+          backgroundColor: theme.themeColor,
+          borderWidth: CARD_BORDER,
+          borderColor: 'rgba(0,0,0,0.08)',
+          marginBottom: CARD_SHADOW_HEIGHT,
+        }}
       >
-        {/* Readability overlay */}
+        <Pressable
+          onPress={onOpenDetails}
+          accessibilityRole="button"
+          accessibilityLabel={`Open details for ${title}`}
+          style={{ flex: 1 }}
+        >
+          <ImageBackground
+            source={theme.image}
+            resizeMode="contain"
+            style={{ flex: 1 }}
+          />
+        </Pressable>
+
         <View
           style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.18)',
-            padding: 16,
-            justifyContent: 'space-between',
+            flex: 1.4,
+            backgroundColor: 'rgba(255,255,255,0.92)',
+            padding: CARD_PADDING,
           }}
         >
-          {/* Top row: category + progress */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.92)',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 2,
-                borderColor: 'rgba(0,0,0,0.06)',
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '800', color: '#1F2937', letterSpacing: 0.6 }}>
-                {label}
+          <Pressable
+            onPress={onOpenDetails}
+            accessibilityRole="button"
+            accessibilityLabel={`Open details for ${title}`}
+            style={{ flexGrow: 1, flexShrink: 1 }}
+          >
+            <View style={{ flexGrow: 1, flexShrink: 1 }}>
+              {/* Top row: category + progress */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    borderWidth: 2,
+                    borderColor: 'rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: '#1F2937',
+                      letterSpacing: 0.6,
+                      fontFamily: FONT_BRICOLAGE_SEMIBOLD,
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </View>
+
+                <View
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    borderWidth: 2,
+                    borderColor: 'rgba(0,0,0,0.06)',
+                  }}
+                >
+                  <Text style={{ fontSize: 12, color: '#1F2937', fontFamily: FONT_BRICOLAGE_SEMIBOLD }}>
+                    {progressLabel}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ marginTop: 12 }}>
+                <Text style={{ fontSize: 26, color: '#111827', fontFamily: FONT_BRICOLAGE_BOLD }} numberOfLines={2}>
+                  {title}
+                </Text>
+                {!!task.description && (
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      fontSize: 14,
+                      color: '#6B7280',
+                      lineHeight: 20,
+                      fontFamily: FONT_POPPINS_SEMIBOLD,
+                    }}
+                    numberOfLines={3}
+                  >
+                    {task.description}
+                  </Text>
+                )}
+              </View>
+
+              <Text
+                style={{
+                  marginTop: 10,
+                  marginBottom: 0,
+                  fontSize: 12,
+                  color: '#1CB0F6',
+                  fontFamily: FONT_POPPINS_SEMIBOLD,
+                }}
+              >
+                Tap to view details
               </Text>
             </View>
+          </Pressable>
 
-            <View
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.92)',
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 999,
-                borderWidth: 2,
-                borderColor: 'rgba(0,0,0,0.06)',
-              }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '800', color: '#1F2937' }}>
-                {progressLabel}
-              </Text>
-            </View>
-          </View>
-
-          {/* Bottom stack: Duolingo chunky buttons */}
-          <View style={{ gap: 12 }}>
-            <Button
-              title={task.shortTitle || task.title}
-              variant="outline"
-              size="lg"
-              fullWidth
-              onPress={onOpenDetails}
-              textStyle={{
-                textTransform: 'none',
-                fontSize: 18,
-                letterSpacing: 0,
-              }}
-            />
-
-            <Button
-              title="Details"
-              variant="secondary"
-              size="lg"
-              fullWidth
-              onPress={onOpenDetails}
-            />
-
+          <View style={{ gap: 12, marginTop: 12 }}>
             <Button
               title={isCompleted ? 'Completed' : 'Mark as complete'}
               variant={isCompleted ? 'outline' : 'primary'}
@@ -153,7 +209,7 @@ function DeckCard({
             />
           </View>
         </View>
-      </ImageBackground>
+      </View>
     </View>
   );
 }
