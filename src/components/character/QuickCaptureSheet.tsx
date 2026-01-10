@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
 } from 'react-native';
+
 import type { MomentType } from '@/types/models';
+import { TodayColors, TodayRadii, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 import { useCharacterStore } from '@/store/characterStore';
 import { checkInterventionAfterMoment } from '@/store/coachingStore';
 import {
@@ -24,32 +25,53 @@ import {
 import { TraitSelector } from './TraitSelector';
 import { ScenarioSelector } from './ScenarioSelector';
 import { MomentConfirmation } from './MomentConfirmation';
+import { TraitPracticeFlow } from './TraitPracticeFlow';
+import { getTraitById } from '@/data/characterScenarios';
+
+type Mode = 'practice' | 'log';
+type ViewStep = 'trait' | 'practice' | 'log' | 'success';
 
 interface Props {
   visible: boolean;
   userId: string;
   onClose: () => void;
+  defaultMode?: Mode;
+  initialTraitId?: string | null;
+  allowPractice?: boolean;
 }
 
-type Step = 'trait' | 'scenario' | 'note' | 'success';
-
-export function QuickCaptureSheet({ visible, userId, onClose }: Props) {
-  const [step, setStep] = useState<Step>('trait');
+export function QuickCaptureSheet({
+  visible,
+  userId,
+  onClose,
+  defaultMode = 'practice',
+  initialTraitId = null,
+  allowPractice = true,
+}: Props) {
+  const effectiveDefaultMode: Mode = allowPractice ? defaultMode : 'log';
+  const [mode, setMode] = useState<Mode>(effectiveDefaultMode);
+  const [view, setView] = useState<ViewStep>('trait');
   const [selectedTraitId, setSelectedTraitId] = useState<string | null>(null);
+
+  // Logging flow state
   const [momentType, setMomentType] = useState<MomentType>('positive');
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [customNote, setCustomNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successData, setSuccessData] = useState<{
-    leveledUp: boolean;
-    newLevel?: number;
-  } | null>(null);
+  const [successData, setSuccessData] = useState<{ leveledUp: boolean; newLevel?: number } | null>(null);
 
   const logMoment = useCharacterStore((state) => state.logMoment);
+  const getTreeState = useCharacterStore((state) => state.getTreeState);
+
+  const selectedTrait = useMemo(
+    () => (selectedTraitId ? getTraitById(selectedTraitId) : undefined),
+    [selectedTraitId]
+  );
 
   const resetState = () => {
-    setStep('trait');
-    setSelectedTraitId(null);
+    setMode(effectiveDefaultMode);
+    setSelectedTraitId(initialTraitId);
+    setView(initialTraitId ? (effectiveDefaultMode === 'practice' ? 'practice' : 'log') : 'trait');
     setMomentType('positive');
     setSelectedScenarioId(null);
     setCustomNote('');
@@ -57,16 +79,50 @@ export function QuickCaptureSheet({ visible, userId, onClose }: Props) {
     setSuccessData(null);
   };
 
+  useEffect(() => {
+    if (!visible) return;
+    resetState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, defaultMode, effectiveDefaultMode, initialTraitId]);
+
   const handleClose = () => {
     resetState();
     onClose();
+  };
+
+  const handleBack = () => {
+    if (view === 'practice' || view === 'log') {
+      setView('trait');
+      setSelectedTraitId(null);
+      setSelectedScenarioId(null);
+      setCustomNote('');
+      setSuccessData(null);
+      return;
+    }
+  };
+
+  const handleModeChange = (next: Mode) => {
+    if (!allowPractice && next === 'practice') return;
+    if (next === mode) return;
+    selectionHaptic();
+    setMode(next);
+    setSelectedScenarioId(null);
+    setCustomNote('');
+    setSuccessData(null);
+    if (selectedTraitId) {
+      setView(next === 'practice' ? 'practice' : 'log');
+    } else {
+      setView('trait');
+    }
   };
 
   const handleTraitSelect = (traitId: string) => {
     lightHaptic();
     setSelectedTraitId(traitId);
     setSelectedScenarioId(null);
-    setStep('scenario');
+    setCustomNote('');
+    setSuccessData(null);
+    setView(mode === 'practice' ? 'practice' : 'log');
   };
 
   const handleScenarioSelect = (scenarioId: string) => {
@@ -74,7 +130,7 @@ export function QuickCaptureSheet({ visible, userId, onClose }: Props) {
     setSelectedScenarioId(scenarioId);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmitLog = async () => {
     if (!selectedTraitId || !selectedScenarioId) return;
 
     setIsSubmitting(true);
@@ -87,47 +143,36 @@ export function QuickCaptureSheet({ visible, userId, onClose }: Props) {
     );
     setIsSubmitting(false);
 
-    if (result.success) {
-      // Haptic feedback based on outcome
-      if (result.leveledUp) {
-        celebrationHaptic();
-      } else if (momentType === 'positive') {
-        successHaptic();
-      } else {
-        struggleHaptic();
-      }
+    if (!result.success) return;
 
-      setSuccessData({
-        leveledUp: result.leveledUp,
-        newLevel: result.newLevel,
-      });
-      setStep('success');
+    if (result.leveledUp) {
+      celebrationHaptic();
+    } else if (momentType === 'positive') {
+      successHaptic();
+    } else {
+      struggleHaptic();
+    }
 
-      // Check for coaching intervention after logging (especially struggles)
-      if (momentType === 'struggle') {
-        checkInterventionAfterMoment(userId);
-      }
+    setSuccessData({ leveledUp: result.leveledUp, newLevel: result.newLevel });
+    setView('success');
+
+    if (momentType === 'struggle') {
+      checkInterventionAfterMoment(userId);
     }
   };
 
-  const handleBack = () => {
-    if (step === 'scenario') {
-      setStep('trait');
-      setSelectedScenarioId(null);
-    } else if (step === 'note') {
-      setStep('scenario');
-    }
-  };
+  const canSubmitLog = !!selectedTraitId && !!selectedScenarioId && !isSubmitting;
 
-  const canSubmit = selectedTraitId && selectedScenarioId && !isSubmitting;
+  const headerTitle = useMemo(() => {
+    if (view === 'practice' && selectedTraitId) return `Nurture ${selectedTrait?.name || 'Trait'}`;
+    if (mode === 'log') return 'Log a moment';
+    return 'Tarbiyah Coach';
+  }, [mode, selectedTrait?.name, selectedTraitId, view]);
+
+  const traitPickerTitle = mode === 'practice' ? 'Pick a trait to practice' : 'Pick a trait to log';
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.overlay}
@@ -135,8 +180,7 @@ export function QuickCaptureSheet({ visible, userId, onClose }: Props) {
         <Pressable style={styles.backdrop} onPress={handleClose} />
 
         <View style={styles.sheet}>
-          {/* Success overlay */}
-          {step === 'success' && selectedTraitId && successData && (
+          {view === 'success' && selectedTraitId && successData && (
             <MomentConfirmation
               traitId={selectedTraitId}
               momentType={momentType}
@@ -146,84 +190,124 @@ export function QuickCaptureSheet({ visible, userId, onClose }: Props) {
             />
           )}
 
-          {step !== 'success' && (
+          {view !== 'success' && (
             <>
-              {/* Header */}
               <View style={styles.header}>
-                {step !== 'trait' ? (
+                {view !== 'trait' ? (
                   <Pressable onPress={handleBack} style={styles.backButton}>
                     <Text style={styles.backText}>{'<'}</Text>
                   </Pressable>
                 ) : (
                   <View style={styles.backButton} />
                 )}
-                <Text style={styles.headerTitle}>Log a Moment</Text>
+
+                <View style={styles.headerCenter}>
+                  <Text style={styles.headerTitle} numberOfLines={1}>
+                    {headerTitle}
+                  </Text>
+                  {view === 'practice' && selectedTrait ? (
+                    <Text style={styles.headerSubtitle} numberOfLines={1}>
+                      {selectedTrait.emoji} {selectedTrait.name}
+                    </Text>
+                  ) : null}
+                </View>
+
                 <Pressable onPress={handleClose} style={styles.closeButton}>
                   <Text style={styles.closeText}>x</Text>
                 </Pressable>
               </View>
 
-              {/* Handle */}
               <View style={styles.handle} />
 
-              <ScrollView
-                style={styles.content}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                {/* Step 1: Select Trait */}
-                {step === 'trait' && (
+              {view !== 'success' && allowPractice ? (
+                <View style={styles.segment}>
+                  <Pressable
+                    style={[styles.segmentItem, mode === 'practice' && styles.segmentItemActive]}
+                    onPress={() => handleModeChange('practice')}
+                  >
+                    <Text style={[styles.segmentText, mode === 'practice' && styles.segmentTextActive]}>
+                      Practice
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.segmentItem, mode === 'log' && styles.segmentItemActive]}
+                    onPress={() => handleModeChange('log')}
+                  >
+                    <Text style={[styles.segmentText, mode === 'log' && styles.segmentTextActive]}>
+                      Log
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {view === 'trait' ? (
+                <>
                   <TraitSelector
                     selectedTraitId={selectedTraitId}
                     onSelectTrait={handleTraitSelect}
+                    title={traitPickerTitle}
                   />
-                )}
 
-                {/* Step 2: Select Scenario */}
-                {step === 'scenario' && selectedTraitId && (
-                  <>
-                    <ScenarioSelector
-                      traitId={selectedTraitId}
-                      momentType={momentType}
-                      selectedScenarioId={selectedScenarioId}
-                      onSelectMomentType={setMomentType}
-                      onSelectScenario={handleScenarioSelect}
+                  {mode === 'practice' ? (
+                    <Text style={styles.footerHint}>
+                      Choose one small practice. Keep it gentle.
+                    </Text>
+                  ) : (
+                    <Text style={styles.footerHint}>
+                      Quick logs help you see patterns over time.
+                    </Text>
+                  )}
+                </>
+              ) : null}
+
+              {view === 'practice' && selectedTraitId ? (
+                <TraitPracticeFlow
+                  active={visible && view === 'practice'}
+                  userId={userId}
+                  traitId={selectedTraitId}
+                  treeState={getTreeState(selectedTraitId)}
+                  onClose={handleClose}
+                />
+              ) : null}
+
+              {view === 'log' && selectedTraitId ? (
+                <View style={styles.logContent}>
+                  <ScenarioSelector
+                    traitId={selectedTraitId}
+                    momentType={momentType}
+                    selectedScenarioId={selectedScenarioId}
+                    onSelectMomentType={setMomentType}
+                    onSelectScenario={handleScenarioSelect}
+                  />
+
+                  <View style={styles.noteContainer}>
+                    <Text style={styles.noteLabel}>Add a note (optional)</Text>
+                    <TextInput
+                      style={styles.noteInput}
+                      placeholder="What happened?"
+                      placeholderTextColor={TodayColors.textMuted}
+                      value={customNote}
+                      onChangeText={setCustomNote}
+                      multiline
+                      maxLength={200}
                     />
+                  </View>
 
-                    {/* Optional note */}
-                    <View style={styles.noteContainer}>
-                      <Text style={styles.noteLabel}>Add a note (optional)</Text>
-                      <TextInput
-                        style={styles.noteInput}
-                        placeholder="What happened?"
-                        placeholderTextColor="#A3A3A3"
-                        value={customNote}
-                        onChangeText={setCustomNote}
-                        multiline
-                        maxLength={200}
-                      />
-                    </View>
-
-                    {/* Submit Button */}
-                    <View style={styles.submitContainer}>
-                      <Pressable
-                        style={[
-                          styles.submitButton,
-                          !canSubmit && styles.submitButtonDisabled,
-                        ]}
-                        onPress={handleSubmit}
-                        disabled={!canSubmit}
-                      >
-                        {isSubmitting ? (
-                          <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                          <Text style={styles.submitText}>Log Moment</Text>
-                        )}
-                      </Pressable>
-                    </View>
-                  </>
-                )}
-              </ScrollView>
+                  <View style={styles.submitContainer}>
+                    <Pressable
+                      style={[styles.primaryButton, !canSubmitLog && styles.primaryButtonDisabled]}
+                      onPress={handleSubmitLog}
+                      disabled={!canSubmitLog}
+                    >
+                      {isSubmitting ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.primaryButtonText}>Log</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
             </>
           )}
         </View>
@@ -245,41 +329,57 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF9F6',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '85%',
-    minHeight: 400,
+    maxHeight: '90%',
+    minHeight: 420,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: TodaySpacing[16],
+    paddingTop: TodaySpacing[16],
+    paddingBottom: TodaySpacing[8],
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: TodaySpacing[12],
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontFamily: TodayTypography.bricolageBold,
+    color: '#1A5F4A',
+  },
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textMuted,
   },
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
   },
   backText: {
-    fontSize: 24,
-    color: '#1A5F4A',
-    fontWeight: '600',
-  },
-  headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A5F4A',
+    color: '#78716C',
   },
   closeButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
   },
   closeText: {
-    fontSize: 24,
+    fontSize: 18,
+    fontWeight: '700',
     color: '#78716C',
   },
   handle: {
@@ -288,58 +388,89 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4D4D4',
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 16,
+    marginTop: 6,
+    marginBottom: 6,
   },
-  content: {
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(17,24,39,0.06)',
+    borderRadius: TodayRadii.pill,
+    padding: 4,
+    marginHorizontal: TodaySpacing[16],
+    marginBottom: TodaySpacing[12],
+  },
+  segmentItem: {
     flex: 1,
-    paddingBottom: 32,
+    paddingVertical: 10,
+    borderRadius: TodayRadii.pill,
+    alignItems: 'center',
+  },
+  segmentItemActive: {
+    backgroundColor: TodayColors.card,
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
+  },
+  segmentText: {
+    fontSize: 12,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  segmentTextActive: {
+    color: TodayColors.textPrimary,
+  },
+  footerHint: {
+    marginTop: TodaySpacing[12],
+    marginBottom: TodaySpacing[16],
+    paddingHorizontal: TodaySpacing[16],
+    fontSize: 12,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textMuted,
+    textAlign: 'center',
+  },
+  logContent: {
+    paddingHorizontal: TodaySpacing[16],
+    paddingBottom: TodaySpacing[16],
   },
   noteContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    marginTop: TodaySpacing[12],
   },
   noteLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#78716C',
-    marginBottom: 8,
+    fontSize: 12,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textSecondary,
+    marginBottom: TodaySpacing[8],
   },
   noteInput: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15,
-    color: '#1A5F4A',
-    minHeight: 60,
+    minHeight: 88,
+    borderRadius: TodayRadii.md,
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
+    padding: TodaySpacing[12],
+    backgroundColor: TodayColors.card,
+    fontSize: 14,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textPrimary,
     textAlignVertical: 'top',
   },
   submitContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 32,
+    marginTop: TodaySpacing[16],
   },
-  submitButton: {
-    backgroundColor: '#58CC02',
-    borderRadius: 16,
-    paddingVertical: 16,
+  primaryButton: {
+    backgroundColor: TodayColors.ctaPrimary,
+    borderRadius: TodayRadii.md,
+    paddingVertical: TodaySpacing[12],
     alignItems: 'center',
-    shadowColor: '#58A700',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 4,
   },
-  submitButtonDisabled: {
-    backgroundColor: '#E5E5E5',
-    shadowColor: '#AFAFAF',
+  primaryButtonDisabled: {
+    backgroundColor: TodayColors.ctaDisabled,
   },
-  submitText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+  primaryButtonText: {
+    fontSize: 14,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textInverse,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
 });

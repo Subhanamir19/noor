@@ -330,6 +330,26 @@ export interface CoachingChallenge {
   completed_at: string | null;
 }
 
+// =====================================================
+// Trait Practice (Nurture This Trait)
+// =====================================================
+
+export type TraitPracticeStatus = 'active' | 'completed' | 'abandoned';
+
+export interface TraitPracticeSession {
+  id: string;
+  user_id: string;
+  trait_id: string;
+  practice_id: string;
+  practice_payload: Record<string, unknown>;
+  status: TraitPracticeStatus;
+  started_at: string;
+  ended_at: string | null;
+  reflection_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // UI State
 export type LoadingState = 'idle' | 'loading' | 'success' | 'error';
 

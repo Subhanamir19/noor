@@ -13,7 +13,6 @@ export {
   JourneyHeader,
   JourneyPath,
   LockMessage,
-  MotherCharacter,
   PathConnector,
   PhotoModal,
   TreasureChest,

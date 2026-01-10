@@ -13,7 +13,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PlusIcon } from 'react-native-heroicons/solid';
+import { CameraIcon } from 'react-native-heroicons/solid';
 
 import { JourneySizes, JourneyAnimations, JourneyColors } from '@/constants/journeyTokens';
 import { mediumHaptic } from '@/utils/haptics';
@@ -67,7 +67,7 @@ function CaptureButtonComponent({ onPress, testID }: CaptureButtonProps) {
       <Animated.View style={[styles.buttonWrapper, animatedStyle]}>
         {/* Main button with gradient */}
         <LinearGradient
-          colors={[JourneyColors.nodePinkLight, JourneyColors.nodePinkDark]}
+          colors={[JourneyColors.ctaPrimary, JourneyColors.ctaPrimaryShadow]}
           style={styles.button}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -75,8 +75,8 @@ function CaptureButtonComponent({ onPress, testID }: CaptureButtonProps) {
           {/* Glossy highlight */}
           <View style={styles.glossyHighlight} />
 
-          {/* Plus icon */}
-          <PlusIcon size={32} color="#FFFFFF" />
+          {/* Camera icon */}
+          <CameraIcon size={30} color={JourneyColors.textInverse} />
         </LinearGradient>
 
         {/* 3D Shadow */}
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     width: fabSize,
     height: fabSize,
     borderRadius: fabSize / 2,
-    backgroundColor: JourneyColors.nodePinkShadow,
+    backgroundColor: JourneyColors.ctaPrimaryShadow,
     zIndex: 1,
   },
 });

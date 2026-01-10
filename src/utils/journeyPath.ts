@@ -6,7 +6,13 @@
  */
 
 import type { JourneyDay, PathNode } from '@/types/journey';
-import { JourneySizes, JourneyLayout } from '@/constants/journeyTokens';
+import {
+  JourneySizes,
+  JourneyLayout,
+  NodeGradients,
+  NodeShadowColors,
+  NodeTextColors,
+} from '@/constants/journeyTokens';
 
 // ---------------------------------------------------------------------------
 // Path Position Calculations
@@ -26,18 +32,18 @@ export function calculatePathPositions(
   days: JourneyDay[],
   pathWidth: number
 ): PathNode[] {
-  const { waveAmplitude, waveCenterX, verticalSpacing, nodeSize } = JourneySizes;
+  const { waveAmplitude, verticalSpacing, nodeSize } = JourneySizes;
 
-  // Adjust center based on available width
-  const effectiveCenterX = Math.min(waveCenterX, pathWidth / 2);
-  const effectiveAmplitude = Math.min(waveAmplitude, (pathWidth - nodeSize) / 2 - 20);
+  const centerX = pathWidth / 2;
+  const maxAmplitude = Math.max(0, (pathWidth - nodeSize) / 2 - 16);
+  const effectiveAmplitude = Math.min(waveAmplitude, maxAmplitude);
 
   return days.map((day, index) => {
     // Create sinusoidal wave pattern
     // Using PI/2 gives us: 0 -> 1 -> 0 -> -1 -> 0 pattern
     const wavePosition = Math.sin((index * Math.PI) / 2);
 
-    const x = effectiveCenterX + wavePosition * effectiveAmplitude - nodeSize / 2;
+    const x = centerX + wavePosition * effectiveAmplitude - nodeSize / 2;
     const y = JourneyLayout.pathPaddingTop + index * verticalSpacing;
 
     const curveDirection = wavePosition >= 0 ? 'right' : 'left';
@@ -177,28 +183,9 @@ export function getNodeStyleForStatus(status: JourneyDay['status']): {
   shadow: string;
   text: string;
 } {
-  const styles = {
-    logged: {
-      gradient: ['#FDA4AF', '#FB7185'] as const,
-      shadow: '#BE123C',
-      text: '#FFFFFF',
-    },
-    missed: {
-      gradient: ['#6B7280', '#4B5563'] as const,
-      shadow: '#374151',
-      text: '#9CA3AF',
-    },
-    today: {
-      gradient: ['#FCD34D', '#F59E0B'] as const,
-      shadow: '#B45309',
-      text: '#1A1A2E',
-    },
-    locked: {
-      gradient: ['#374151', '#1F2937'] as const,
-      shadow: '#111827',
-      text: '#4B5563',
-    },
+  return {
+    gradient: NodeGradients[status],
+    shadow: NodeShadowColors[status],
+    text: NodeTextColors[status],
   };
-
-  return styles[status];
 }

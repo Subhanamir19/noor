@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, Dimensions, Modal, Text, View } from 'react-native';
+import { Animated, Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Button } from '@/components/common/Button';
+import { TodayColors, TodayRadii, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 import { getTodaysAyah, type AyahOfTheDay } from '@/data/ayahOfTheDay';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -21,6 +22,7 @@ export function AyahOverlay({ onDismiss }: Props) {
 
   useEffect(() => {
     checkIfShouldShow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkIfShouldShow = async () => {
@@ -33,17 +35,16 @@ export function AyahOverlay({ onDismiss }: Props) {
         setAyah(todaysAyah);
         setVisible(true);
 
-        // Animate in
         Animated.parallel([
           Animated.timing(fadeAnim, {
             toValue: 1,
-            duration: 600,
+            duration: 260,
             useNativeDriver: true,
           }),
           Animated.spring(slideAnim, {
             toValue: 0,
-            tension: 50,
-            friction: 8,
+            tension: 55,
+            friction: 9,
             useNativeDriver: true,
           }),
         ]).start();
@@ -58,16 +59,15 @@ export function AyahOverlay({ onDismiss }: Props) {
       const today = new Date().toDateString();
       await AsyncStorage.setItem(AYAH_SEEN_KEY, today);
 
-      // Animate out
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 0,
-          duration: 300,
+          duration: 180,
           useNativeDriver: true,
         }),
         Animated.timing(slideAnim, {
-          toValue: -50,
-          duration: 300,
+          toValue: -20,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -84,94 +84,133 @@ export function AyahOverlay({ onDismiss }: Props) {
   if (!visible || !ayah) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={handleDismiss}
-    >
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={handleDismiss}>
       <LinearGradient
-        colors={['#FFF0F5', '#FFE4EC', '#FFD6E0']}
+        colors={[TodayColors.bgApp, '#FFE6F0', '#FFD5E3']}
         style={{ flex: 1 }}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View className="flex-1 justify-center items-center px-6">
+        <View style={styles.centerWrap}>
+          {/* Backdrop */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleDismiss}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss Ayah of the Day"
+          />
+
           <Animated.View
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
               width: '100%',
-              alignItems: 'center',
+              maxWidth: 520,
+              maxHeight: Math.min(680, SCREEN_HEIGHT * 0.8),
             }}
           >
-            {/* Decorative top element */}
-            <View className="mb-8">
-              <Text style={{ fontSize: 48 }}>
-                ﷽
-              </Text>
-            </View>
-
-            {/* Arabic Text */}
-            <View className="bg-white/80 rounded-3xl px-6 py-8 mb-6 w-full">
+            {/* Card */}
+            <View
+              style={{
+                backgroundColor: TodayColors.cardTint,
+                borderRadius: TodayRadii.lg,
+                borderWidth: 2,
+                borderColor: TodayColors.strokeSubtle,
+                padding: TodaySpacing[16],
+              }}
+            >
               <Text
-                className="text-center mb-6"
                 style={{
-                  fontFamily: 'System',
-                  fontSize: 28,
-                  lineHeight: 48,
-                  color: '#1a1a1a',
-                  writingDirection: 'rtl',
+                  fontFamily: TodayTypography.bricolageBold,
+                  fontSize: 18,
+                  color: TodayColors.textPrimary,
+                  textAlign: 'center',
+                  marginBottom: TodaySpacing[12],
                 }}
               >
-                {ayah.arabic}
+                Ayah of the Day
               </Text>
 
-              {/* Decorative divider */}
-              <View className="flex-row items-center justify-center mb-6">
-                <View className="h-[1px] w-12 bg-pinkMedium" />
-                <Text className="mx-3 text-pinkAccent">✦</Text>
-                <View className="h-[1px] w-12 bg-pinkMedium" />
+              {/* Arabic */}
+              <View
+                style={{
+                  backgroundColor: TodayColors.card,
+                  borderRadius: TodayRadii.lg,
+                  borderWidth: 2,
+                  borderColor: TodayColors.strokeSubtle,
+                  paddingHorizontal: TodaySpacing[16],
+                  paddingVertical: TodaySpacing[16],
+                }}
+              >
+                <Text
+                  style={{
+                    fontFamily: 'System',
+                    fontSize: 28,
+                    lineHeight: 46,
+                    color: TodayColors.textPrimary,
+                    writingDirection: 'rtl',
+                    textAlign: 'center',
+                  }}
+                >
+                  {ayah.arabic}
+                </Text>
+
+                <View style={{ height: TodaySpacing[12] }} />
+
+                <Text
+                  style={{
+                    fontFamily: TodayTypography.poppinsSemiBold,
+                    fontSize: 16,
+                    lineHeight: 24,
+                    color: TodayColors.textSecondary,
+                    textAlign: 'center',
+                  }}
+                >
+                  “{ayah.translation}”
+                </Text>
               </View>
 
-              {/* Translation */}
+              {/* Reference */}
+              <View style={{ marginTop: TodaySpacing[12], alignItems: 'center' }}>
+                <Text style={{ fontFamily: TodayTypography.bricolageSemiBold, color: TodayColors.textPrimary }}>
+                  {ayah.surah} • {ayah.ayah}
+                </Text>
+                <Text
+                  style={{
+                    marginTop: 4,
+                    fontFamily: TodayTypography.poppinsSemiBold,
+                    fontSize: 12,
+                    color: TodayColors.textMuted,
+                    textAlign: 'center',
+                  }}
+                >
+                  {ayah.theme}
+                </Text>
+              </View>
+
+              <View style={{ marginTop: TodaySpacing[16] }}>
+                <Button
+                  title="Continue"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onPress={handleDismiss}
+                  textStyle={{ textTransform: 'none' }}
+                />
+              </View>
+
               <Text
-                className="text-center font-interMedium text-warmGray"
-                style={{ fontSize: 18, lineHeight: 28 }}
+                style={{
+                  marginTop: TodaySpacing[12],
+                  fontFamily: TodayTypography.poppinsSemiBold,
+                  fontSize: 12,
+                  color: TodayColors.textMuted,
+                  textAlign: 'center',
+                }}
               >
-                "{ayah.translation}"
+                Tap anywhere to continue
               </Text>
             </View>
-
-            {/* Reference */}
-            <View className="bg-white/60 rounded-2xl px-5 py-3 mb-8">
-              <Text className="text-center font-poppinsSemiBold text-teal">
-                {ayah.surah} • {ayah.ayah}
-              </Text>
-              <Text className="text-center font-interRegular text-warmGray text-sm mt-1">
-                {ayah.theme}
-              </Text>
-            </View>
-
-            {/* Read Button - Duolingo 3D style */}
-            <View style={{ width: '100%', maxWidth: 280 }}>
-              <Button
-                title="Read it ✓"
-                variant="primary"
-                size="lg"
-                fullWidth
-                onPress={handleDismiss}
-              />
-            </View>
-
-            {/* Subtle skip option */}
-            <Text
-              className="text-warmGray/60 font-interRegular text-sm mt-4"
-              onPress={handleDismiss}
-            >
-              Tap anywhere to continue
-            </Text>
           </Animated.View>
         </View>
       </LinearGradient>
@@ -179,9 +218,15 @@ export function AyahOverlay({ onDismiss }: Props) {
   );
 }
 
-/**
- * Hook to manage Ayah overlay state
- */
+const styles = StyleSheet.create({
+  centerWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: TodaySpacing[16],
+  },
+});
+
 export function useAyahOverlay() {
   const [showAyah, setShowAyah] = useState(true);
 

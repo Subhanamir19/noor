@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+
+import { TodayColors, TodayRadii, TodayShadows, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 
 interface Props {
   score: number; // 0-100
@@ -9,10 +11,10 @@ interface Props {
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 70) return '#4CAF50';
-  if (score >= 50) return '#FFC107';
+  if (score >= 70) return TodayColors.success;
+  if (score >= 50) return TodayColors.warning;
   if (score >= 30) return '#FF9800';
-  return '#F44336';
+  return TodayColors.danger;
 }
 
 function getScoreLabel(score: number): string {
@@ -23,10 +25,10 @@ function getScoreLabel(score: number): string {
 }
 
 function getScoreEmoji(score: number): string {
-  if (score >= 70) return '🌳';
-  if (score >= 50) return '🌱';
-  if (score >= 30) return '🌿';
-  return '🍂';
+  if (score >= 70) return '🙂';
+  if (score >= 50) return '😊';
+  if (score >= 30) return '😕';
+  return '😣';
 }
 
 export function WellnessIndicator({ score, tips, onPress }: Props) {
@@ -40,50 +42,98 @@ export function WellnessIndicator({ score, tips, onPress }: Props) {
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 100) * circumference;
 
-  return (
-    <Pressable style={styles.container} onPress={onPress}>
-      <View style={styles.circleContainer}>
-        <Svg width={size} height={size} style={styles.svg}>
-          {/* Background circle */}
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke="#E5E5E5"
-            strokeWidth={strokeWidth}
-            fill="transparent"
-          />
-          {/* Progress circle */}
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            fill="transparent"
-            strokeDasharray={`${progress} ${circumference}`}
-            strokeLinecap="round"
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-          />
-        </Svg>
-        <View style={styles.scoreContent}>
-          <Text style={styles.emoji}>{emoji}</Text>
-          <Text style={[styles.score, { color }]}>{score}</Text>
-        </View>
-      </View>
+  const shadowHeight = TodayShadows.cardLedge.height;
+  const tip = tips[0];
 
-      <View style={styles.info}>
-        <Text style={[styles.label, { color }]}>{label}</Text>
-        <Text style={styles.subtitle}>Family Wellness</Text>
+  const renderCard = useCallback(
+    (pressed: boolean) => {
+      const translateY = pressed ? shadowHeight : 0;
+      const currentShadowHeight = pressed ? 0 : shadowHeight;
 
-        {tips.length > 0 && (
-          <View style={styles.tipContainer}>
-            <Text style={styles.tipText} numberOfLines={2}>
-              💡 {tips[0]}
-            </Text>
+      return (
+        <View>
+          {/* Shadow layer */}
+          <View
+            style={{
+              position: 'absolute',
+              top: shadowHeight,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: TodayShadows.cardLedge.color,
+              borderRadius: TodayRadii.md,
+            }}
+          />
+
+          {/* Surface */}
+          <View
+            style={[
+              styles.container,
+              {
+                borderRadius: TodayRadii.md,
+                backgroundColor: TodayColors.card,
+                borderWidth: 2,
+                borderColor: TodayColors.strokeSubtle,
+                transform: [{ translateY }],
+                marginBottom: currentShadowHeight,
+              },
+            ]}
+          >
+            <View style={styles.circleContainer}>
+              <Svg width={size} height={size} style={styles.svg}>
+                <Circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke="rgba(17,24,39,0.10)"
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                />
+                <Circle
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  stroke={color}
+                  strokeWidth={strokeWidth}
+                  fill="transparent"
+                  strokeDasharray={`${progress} ${circumference}`}
+                  strokeLinecap="round"
+                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                />
+              </Svg>
+              <View style={styles.scoreContent}>
+                <Text style={styles.emoji}>{emoji}</Text>
+                <Text style={[styles.score, { color }]}>{score}</Text>
+              </View>
+            </View>
+
+            <View style={styles.info}>
+              <Text style={[styles.label, { color }]}>{label}</Text>
+              <Text style={styles.subtitle}>Family Wellness</Text>
+
+              {!!tip && (
+                <View style={styles.tipContainer}>
+                  <Text style={styles.tipText} numberOfLines={2}>
+                    {tip}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
-        )}
-      </View>
+        </View>
+      );
+    },
+    [circumference, color, emoji, label, progress, radius, score, shadowHeight, strokeWidth, tip]
+  );
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Open family wellness"
+      disabled={!onPress}
+    >
+      {({ pressed }) => renderCard(pressed)}
     </Pressable>
   );
 }
@@ -103,16 +153,7 @@ export function WellnessCompact({ score }: { score: number }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: TodaySpacing[16],
   },
   circleContainer: {
     width: 80,
@@ -132,40 +173,44 @@ const styles = StyleSheet.create({
   },
   score: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: TodayTypography.bricolageBold,
   },
   info: {
     flex: 1,
-    marginLeft: 16,
+    marginLeft: TodaySpacing[16],
     justifyContent: 'center',
   },
   label: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: TodayTypography.bricolageSemiBold,
   },
   subtitle: {
     fontSize: 12,
-    color: '#78716C',
+    color: TodayColors.textMuted,
     marginBottom: 8,
+    fontFamily: TodayTypography.poppinsSemiBold,
   },
   tipContainer: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: 8,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderRadius: TodayRadii.sm,
     paddingHorizontal: 10,
     paddingVertical: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(245,158,11,0.20)',
   },
   tipText: {
     fontSize: 12,
-    color: '#795548',
+    color: TodayColors.textSecondary,
     lineHeight: 16,
+    fontFamily: TodayTypography.poppinsSemiBold,
   },
   compactContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(17,24,39,0.06)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 16,
+    borderRadius: TodayRadii.md,
   },
   compactEmoji: {
     fontSize: 14,
@@ -173,6 +218,7 @@ const styles = StyleSheet.create({
   },
   compactScore: {
     fontSize: 14,
-    fontWeight: '700',
+    fontFamily: TodayTypography.bricolageSemiBold,
   },
 });
+

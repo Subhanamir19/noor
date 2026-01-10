@@ -4,3 +4,4 @@ export { QuickCaptureTooltip, useQuickCaptureTooltip } from './QuickCaptureToolt
 export { TraitSelector } from './TraitSelector';
 export { ScenarioSelector } from './ScenarioSelector';
 export { MomentConfirmation } from './MomentConfirmation';
+export { TraitPracticeSheet } from './TraitPracticeSheet';

@@ -1,17 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  RefreshControl,
-  Text,
-  View,
-  Pressable,
-} from 'react-native';
+import { Animated, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Video, ResizeMode } from 'expo-av';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Cog6ToothIcon } from 'react-native-heroicons/outline';
 
 import {
   QuickCaptureButton,
@@ -19,10 +13,14 @@ import {
   QuickCaptureTooltip,
   useQuickCaptureTooltip,
 } from '@/components/character';
-import { ChallengeList, CoachingModal, WellnessIndicator } from '@/components/coaching';
+import { IconButton } from '@/components/common/IconButton';
+import { ChallengeList, CoachingModal } from '@/components/coaching';
 import { AyahOverlay, useAyahOverlay } from '@/components/today/AyahOverlay';
 import { DailyFeedbackModal } from '@/components/today/DailyFeedbackModal';
 import { DailyTaskCardsSection } from '@/components/today/DailyTaskCardsSection';
+import { NoorAmbientZone } from '@/components/today/NoorAmbientZone';
+import { ParentingPulse } from '@/components/today/ParentingPulse';
+import { TodayColors, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/store/authStore';
 import { useCharacterStore } from '@/store/characterStore';
@@ -31,8 +29,8 @@ import { useDailyTasksStore } from '@/store/dailyTasksStore';
 import { useMissionStore } from '@/store/missionStore';
 import type { DailyTask, DailyFeedbackRating } from '@/types/models';
 
-const CHARACTER_SPACE_HEIGHT = 200; // Reserved space for character animation
 const BLUR_HEIGHT = 60;
+const SCREEN_GUTTER = TodaySpacing[16];
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Today'>,
@@ -40,7 +38,6 @@ type Props = CompositeScreenProps<
 >;
 
 export function TodayScreen({ navigation }: Props) {
-  const profile = useAuthStore((state) => state.profile);
   const user = useAuthStore((state) => state.user);
 
   const loadTodaysMission = useMissionStore((state) => state.loadTodaysMission);
@@ -77,7 +74,7 @@ export function TodayScreen({ navigation }: Props) {
   const { showTooltip, dismissTooltip } = useQuickCaptureTooltip();
 
   // Ayah overlay
-  const { showAyah, handleAyahDismiss } = useAyahOverlay();
+  const { handleAyahDismiss } = useAyahOverlay();
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -185,16 +182,18 @@ export function TodayScreen({ navigation }: Props) {
     return (
       <SafeAreaView
         className="flex-1 items-center justify-center"
-        style={{ backgroundColor: '#FFF0F5' }}
+        style={{ backgroundColor: TodayColors.bgApp }}
         edges={['top']}
       >
-        <Text className="text-warmGray">Preparing your space...</Text>
+        <Text style={{ color: TodayColors.textMuted, fontFamily: TodayTypography.poppinsSemiBold }}>
+          Preparing your space...
+        </Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFF0F5' }}>
+    <View style={{ flex: 1, backgroundColor: TodayColors.bgApp }}>
       {/* Ayah of the Day Overlay */}
       <AyahOverlay onDismiss={handleAyahDismiss} />
 
@@ -212,10 +211,7 @@ export function TodayScreen({ navigation }: Props) {
           }}
           pointerEvents="none"
         >
-          <LinearGradient
-            colors={['#FFF0F5', 'rgba(255, 240, 245, 0)']}
-            style={{ flex: 1 }}
-          />
+          <LinearGradient colors={[TodayColors.bgApp, 'rgba(255, 243, 247, 0)']} style={{ flex: 1 }} />
         </Animated.View>
 
         <Animated.ScrollView
@@ -230,108 +226,50 @@ export function TodayScreen({ navigation }: Props) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor="#FF69B4"
+              tintColor={TodayColors.ctaSecondary}
             />
           }
         >
           {/* Header */}
-          <View className="px-6 pt-4 pb-2 flex-row justify-between items-center">
-            <View className="flex-row items-center">
-              <Pressable
-                onPress={() => navigation.navigate('Settings')}
-                className="p-2 mr-2"
-              >
-                <Text style={{ fontSize: 22 }}>☰</Text>
-              </Pressable>
-            </View>
-
-            <View className="flex-row items-center">
-              {/* Mail icon */}
-              <Pressable className="p-2 mr-2">
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    backgroundColor: '#FFFFFF',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}
-                >
-                  <Text style={{ fontSize: 18 }}>💌</Text>
-                </View>
-              </Pressable>
-
-              {/* Add button */}
-              <Pressable className="p-2">
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    backgroundColor: '#4FC3F7',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}
-                >
-                  <Text style={{ fontSize: 20, color: '#FFFFFF' }}>+</Text>
-                </View>
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Character Animation Video */}
-          <View
-            style={{
-              height: CHARACTER_SPACE_HEIGHT,
-              marginHorizontal: 16,
-              marginBottom: 16,
-              borderRadius: 24,
-              overflow: 'hidden',
-              backgroundColor: '#B2EBF2',
-            }}
-          >
-            <Video
-              source={require('../../assets/ONBOARDING-ASSETS/animation-video.mp4')}
-              style={{
-                width: '100%',
-                height: '100%',
-              }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              isLooping
-              isMuted
+          <View style={styles.header}>
+            <IconButton
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+              icon={<Cog6ToothIcon size={22} color={TodayColors.textSecondary} />}
             />
+            <View style={styles.headerSpacer} />
           </View>
+
+          {/* Noor's Ambient Zone - Immersive character window */}
+          <NoorAmbientZone completionPercentage={dailyTaskPercentage} />
 
           {/* Main Content */}
-          <View className="px-4">
-            {/* Wellness Indicator - Compact */}
+          <View style={styles.content}>
+            {/* Parenting Pulse - Transparent wellness indicator */}
             {wellnessScore !== null && (
-              <WellnessIndicator
-                score={wellnessScore}
-                tips={tips}
-                onPress={() => navigation.navigate('Garden' as any)}
-              />
+              <View style={styles.pulseWrapper}>
+                <ParentingPulse
+                  score={wellnessScore}
+                  tasksCompleted={Object.values(dailyTaskCompletions).filter(Boolean).length}
+                  totalTasks={todaysTasks.dayTasks.length + todaysTasks.niceToHaveTasks.length}
+                  streakDays={0}
+                  onPress={() => navigation.navigate('Garden' as any)}
+                />
+              </View>
             )}
 
             {/* Active Challenges */}
-            <ChallengeList
-              challenges={activeChallenges}
-              onCompleteChallenge={handleCompleteChallenge}
-            />
+            {activeChallenges.length > 0 && (
+              <View style={styles.challengesWrapper}>
+                <ChallengeList
+                  challenges={activeChallenges}
+                  onCompleteChallenge={handleCompleteChallenge}
+                />
+              </View>
+            )}
 
-            {/* Daily Tasks Section - Main content */}
+            {/* Daily Tasks - "Your 7 for Today" */}
             <DailyTaskCardsSection
               todaysTasks={todaysTasks}
               completions={dailyTaskCompletions}
@@ -355,27 +293,41 @@ export function TodayScreen({ navigation }: Props) {
       />
 
       {/* Quick Capture FAB */}
-      <QuickCaptureButton onPress={openQuickCapture} />
+      <QuickCaptureButton onPress={openQuickCapture} pulse={showTooltip} />
 
       {/* Quick Capture Tooltip (first-time onboarding) */}
       <QuickCaptureTooltip visible={showTooltip} onDismiss={dismissTooltip} />
 
       {/* Quick Capture Sheet */}
       {user?.id && (
-        <QuickCaptureSheet
-          visible={isQuickCaptureOpen}
-          userId={user.id}
-          onClose={closeQuickCapture}
-        />
+        <QuickCaptureSheet visible={isQuickCaptureOpen} userId={user.id} onClose={closeQuickCapture} />
       )}
 
       {/* Coaching Intervention Modal */}
-      <CoachingModal
-        visible={isInterventionModalVisible}
-        trigger={pendingIntervention}
-        onAccept={handleAcceptIntervention}
-        onDecline={handleDeclineIntervention}
-      />
+      <CoachingModal visible={isInterventionModalVisible} trigger={pendingIntervention} onAccept={handleAcceptIntervention} onDecline={handleDeclineIntervention} />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    paddingHorizontal: SCREEN_GUTTER,
+    paddingTop: TodaySpacing[12],
+    paddingBottom: TodaySpacing[8],
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerSpacer: {
+    width: 44,
+  },
+  content: {
+    paddingHorizontal: SCREEN_GUTTER,
+  },
+  pulseWrapper: {
+    marginBottom: TodaySpacing[16],
+  },
+  challengesWrapper: {
+    marginBottom: TodaySpacing[16],
+  },
+});

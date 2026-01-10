@@ -3,10 +3,12 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CharacterTree, TreeState } from '@/types/models';
 import { getTraitById } from '@/data/characterScenarios';
 import { calculateTreeState } from '@/store/characterStore';
+import { TodayColors, TodayRadii, TodayTypography } from '@/constants/todayTokens';
 
 interface Props {
   tree: CharacterTree;
   onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 const TREE_VISUALS: Record<TreeState, { emoji: string; bgColor: string; borderColor: string }> = {
@@ -18,7 +20,7 @@ const TREE_VISUALS: Record<TreeState, { emoji: string; bgColor: string; borderCo
 
 const LEVEL_INDICATORS = ['○', '◐', '●'];
 
-export function TreeVisual({ tree, onPress }: Props) {
+export function TreeVisual({ tree, onPress, onLongPress }: Props) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const wobbleAnim = useRef(new Animated.Value(0)).current;
 
@@ -85,6 +87,7 @@ export function TreeVisual({ tree, onPress }: Props) {
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >
@@ -141,7 +144,7 @@ const styles = StyleSheet.create({
   container: {
     width: 100,
     height: 130,
-    borderRadius: 16,
+    borderRadius: TodayRadii.md,
     borderWidth: 2,
     padding: 8,
     alignItems: 'center',
@@ -169,7 +172,8 @@ const styles = StyleSheet.create({
   traitName: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#1A5F4A',
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -180,12 +184,13 @@ const styles = StyleSheet.create({
   },
   levelDots: {
     fontSize: 8,
-    color: '#78716C',
+    color: TodayColors.textMuted,
   },
   levelText: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#78716C',
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textMuted,
   },
   xpBarContainer: {
     width: '100%',

@@ -21,17 +21,20 @@ interface PathConnectorProps {
   nodes: PathNode[];
   width: number;
   height: number;
+  activeNodeIndex?: number;
 }
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-function PathConnectorComponent({ nodes, width, height }: PathConnectorProps) {
-  // Memoize path generation to avoid recalculating on every render
-  const pathData = useMemo(() => {
-    return generateConnectorPath(nodes);
-  }, [nodes]);
+function PathConnectorComponent({ nodes, width, height, activeNodeIndex }: PathConnectorProps) {
+  const pathData = useMemo(() => generateConnectorPath(nodes), [nodes]);
+
+  const activePathData = useMemo(() => {
+    if (activeNodeIndex === undefined || activeNodeIndex < 1) return '';
+    return generateConnectorPath(nodes.slice(0, activeNodeIndex + 1));
+  }, [activeNodeIndex, nodes]);
 
   if (!pathData || nodes.length < 2) {
     return null;
@@ -46,12 +49,21 @@ function PathConnectorComponent({ nodes, width, height }: PathConnectorProps) {
     >
       <Path
         d={pathData}
-        stroke={JourneyColors.connectorLine}
+        stroke={JourneyColors.connectorBase}
         strokeWidth={JourneySizes.connectorStrokeWidth}
         strokeDasharray={JourneySizes.connectorDashArray}
         strokeLinecap="round"
         fill="none"
       />
+      {!!activePathData && (
+        <Path
+          d={activePathData}
+          stroke={JourneyColors.connectorActive}
+          strokeWidth={JourneySizes.connectorStrokeWidth}
+          strokeLinecap="round"
+          fill="none"
+        />
+      )}
     </Svg>
   );
 }

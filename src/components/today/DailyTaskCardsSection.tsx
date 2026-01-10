@@ -1,8 +1,19 @@
 import React, { useMemo } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { Button } from '@/components/common/Button';
 import { DailyTaskDeck } from '@/components/today/DailyTaskDeck';
+import {
+  TodayColors,
+  TodayRadii,
+  TodaySpacing,
+  TodayTypography,
+  TodayMotion,
+} from '@/constants/todayTokens';
 import type { DailyTask } from '@/types/models';
 
 interface TodaysTasks {
@@ -21,27 +32,34 @@ interface Props {
 }
 
 function ProgressBar({ percentage }: { percentage: number }) {
+  const animatedWidth = useAnimatedStyle(() => ({
+    width: withTiming(`${Math.max(0, Math.min(100, percentage))}%`, {
+      duration: TodayMotion.smooth.duration,
+    }),
+  }));
+
   return (
-    <View
-      style={{
-        height: 16,
-        borderRadius: 999,
-        backgroundColor: 'rgba(17, 24, 39, 0.08)',
-        overflow: 'hidden',
-        borderWidth: 2,
-        borderColor: 'rgba(0,0,0,0.05)',
-      }}
-    >
-      <View
-        style={{
-          width: `${Math.max(0, Math.min(100, percentage))}%`,
-          height: '100%',
-          backgroundColor: '#58CC02',
-        }}
-      />
+    <View style={progressStyles.track}>
+      <Animated.View style={[progressStyles.fill, animatedWidth]} />
     </View>
   );
 }
+
+const progressStyles = StyleSheet.create({
+  track: {
+    height: 16,
+    borderRadius: TodayRadii.pill,
+    backgroundColor: TodayColors.progressTrack,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: TodayColors.strokeSubtle,
+  },
+  fill: {
+    height: '100%',
+    backgroundColor: TodayColors.progressFill,
+    borderRadius: TodayRadii.pill,
+  },
+});
 
 export function DailyTaskCardsSection({
   todaysTasks,
@@ -67,103 +85,75 @@ export function DailyTaskCardsSection({
   const totalCount = deckTasks.length;
   const goalsLeft = Math.max(0, totalCount - completedCount);
 
+  const mustCount = Math.min(3, dayTasks.length);
+  const bonusCount = deckTasks.length - mustCount;
+
   if (deckTasks.length === 0) {
     return (
-      <View style={{ marginTop: 16 }}>
-        <View
-          style={{
-            backgroundColor: '#FFF0F5',
-            borderRadius: 24,
-            borderWidth: 2,
-            borderColor: '#FF69B4',
-            padding: 20,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 28, marginBottom: 6 }}>⏳</Text>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: '#374151' }}>
-            Loading your tasks...
-          </Text>
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyEmoji}>⏳</Text>
+          <Text style={styles.emptyTitle}>Loading your tasks...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={{ marginTop: 14 }}>
-      {/* Header */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <View>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F766E' }}>
-            Today’s Ritual Cards
+    <View style={styles.container}>
+      {/* Header - "Your 7 for Today" */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.headerTitle}>
+            Your {totalCount} for Today
           </Text>
-          <Text style={{ marginTop: 2, fontSize: 14, fontWeight: '700', color: '#6B7280' }}>
-            {goalsLeft} goals left • {completedCount}/{totalCount} done
+          <Text style={styles.headerSubtitle}>
+            {completedCount}/{totalCount} done
+            {goalsLeft > 0 ? ` • ${goalsLeft} left` : ' • All done!'}
           </Text>
         </View>
 
         <Pressable onPress={onRefresh} hitSlop={10}>
           {({ pressed }) => (
             <View
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-                borderRadius: 16,
-                backgroundColor: pressed ? 'rgba(28,176,246,0.12)' : 'rgba(28,176,246,0.08)',
-                borderWidth: 2,
-                borderColor: 'rgba(28,176,246,0.25)',
-              }}
+              style={[
+                styles.refreshButton,
+                pressed && styles.refreshButtonPressed,
+              ]}
             >
-              <Text style={{ fontSize: 12, fontWeight: '900', color: '#1CB0F6' }}>
-                Refresh
-              </Text>
+              <Text style={styles.refreshButtonText}>Shuffle</Text>
             </View>
           )}
         </Pressable>
       </View>
 
-      {/* Progress */}
-      <View style={{ marginTop: 12 }}>
+      {/* Progress Bar */}
+      <View style={styles.progressWrapper}>
         <ProgressBar percentage={completionPercentage} />
+        <Text style={styles.progressLabel}>
+          {completionPercentage}%
+        </Text>
       </View>
 
-      {/* Quick summary chips */}
-      <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-        <View
-          style={{
-            backgroundColor: 'rgba(88,204,2,0.12)',
-            borderRadius: 999,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderWidth: 2,
-            borderColor: 'rgba(88,204,2,0.25)',
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '900', color: '#2E7D32' }}>
-            Must-to-do: 3
+      {/* Category Chips */}
+      <View style={styles.chipsRow}>
+        <View style={styles.mustDoChip}>
+          <Text style={styles.mustDoChipText}>
+            {mustCount} must-do
           </Text>
         </View>
-        <View
-          style={{
-            backgroundColor: 'rgba(28,176,246,0.10)',
-            borderRadius: 999,
-            paddingVertical: 8,
-            paddingHorizontal: 12,
-            borderWidth: 2,
-            borderColor: 'rgba(28,176,246,0.22)',
-          }}
-        >
-          <Text style={{ fontSize: 12, fontWeight: '900', color: '#1899D6' }}>
-            Nice-to-have: 4
+        <View style={styles.bonusChip}>
+          <Text style={styles.bonusChipText}>
+            {bonusCount} bonus
           </Text>
         </View>
       </View>
 
       {/* Deck */}
-      <View style={{ marginTop: 14 }}>
+      <View style={styles.deckWrapper}>
         <DailyTaskDeck
           tasks={deckTasks}
-          mustCount={3}
+          mustCount={mustCount}
           completions={completions}
           onOpenDetails={onTaskPress}
           onToggleComplete={onTaskComplete}
@@ -173,29 +163,18 @@ export function DailyTaskCardsSection({
 
       {/* Completion celebration */}
       {completionPercentage === 100 && (
-        <View style={{ marginTop: 12 }}>
-          <View
-            style={{
-              backgroundColor: '#FFF9C4',
-              borderRadius: 24,
-              borderWidth: 3,
-              borderColor: '#FFEB3B',
-              padding: 18,
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 36 }}>🏆</Text>
-            <Text style={{ marginTop: 6, fontSize: 18, fontWeight: '900', color: '#92400E' }}>
-              MashAllah! All done!
-            </Text>
-            <Text style={{ marginTop: 2, fontSize: 14, fontWeight: '700', color: '#B45309' }}>
-              You completed today’s set.
+        <View style={styles.celebrationWrapper}>
+          <View style={styles.celebrationCard}>
+            <Text style={styles.celebrationEmoji}>🏆</Text>
+            <Text style={styles.celebrationTitle}>MashAllah! All done!</Text>
+            <Text style={styles.celebrationSubtitle}>
+              You completed today's tasks.
             </Text>
           </View>
 
-          <View style={{ marginTop: 12 }}>
+          <View style={styles.refreshFullWrapper}>
             <Button
-              title="Refresh (pull latest)"
+              title="Get new tasks"
               variant="secondary"
               fullWidth
               onPress={onRefresh}
@@ -207,3 +186,148 @@ export function DailyTaskCardsSection({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: TodaySpacing[14],
+  },
+  emptyContainer: {
+    marginTop: TodaySpacing[16],
+  },
+  emptyCard: {
+    backgroundColor: TodayColors.bgCard,
+    borderRadius: TodayRadii.xl,
+    borderWidth: 2,
+    borderColor: TodayColors.strokeMedium,
+    padding: TodaySpacing[20],
+    alignItems: 'center',
+  },
+  emptyEmoji: {
+    fontSize: 28,
+    marginBottom: TodaySpacing[6],
+  },
+  emptyTitle: {
+    fontSize: TodayTypography.bodyLarge.fontSize,
+    lineHeight: TodayTypography.bodyLarge.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textSecondary,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: TodayTypography.h2.fontSize,
+    lineHeight: TodayTypography.h2.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.accentTeal,
+  },
+  headerSubtitle: {
+    marginTop: TodaySpacing[2],
+    fontSize: TodayTypography.body.fontSize,
+    lineHeight: TodayTypography.body.lineHeight,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textMuted,
+  },
+  refreshButton: {
+    paddingHorizontal: TodaySpacing[12],
+    paddingVertical: TodaySpacing[10],
+    borderRadius: TodayRadii.md,
+    backgroundColor: TodayColors.infoBg,
+    borderWidth: 2,
+    borderColor: TodayColors.infoBorder,
+  },
+  refreshButtonPressed: {
+    backgroundColor: 'rgba(28,176,246,0.18)',
+  },
+  refreshButtonText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.ctaSecondary,
+  },
+  progressWrapper: {
+    marginTop: TodaySpacing[12],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TodaySpacing[10],
+  },
+  progressLabel: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.successDark,
+    minWidth: 36,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: TodaySpacing[10],
+    marginTop: TodaySpacing[12],
+  },
+  mustDoChip: {
+    backgroundColor: TodayColors.successBg,
+    borderRadius: TodayRadii.pill,
+    paddingVertical: TodaySpacing[6],
+    paddingHorizontal: TodaySpacing[12],
+    borderWidth: 2,
+    borderColor: TodayColors.successBorder,
+  },
+  mustDoChipText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.successDark,
+  },
+  bonusChip: {
+    backgroundColor: TodayColors.infoBg,
+    borderRadius: TodayRadii.pill,
+    paddingVertical: TodaySpacing[6],
+    paddingHorizontal: TodaySpacing[12],
+    borderWidth: 2,
+    borderColor: TodayColors.infoBorder,
+  },
+  bonusChipText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.ctaSecondaryPressed,
+  },
+  deckWrapper: {
+    marginTop: TodaySpacing[14],
+  },
+  celebrationWrapper: {
+    marginTop: TodaySpacing[12],
+  },
+  celebrationCard: {
+    backgroundColor: TodayColors.warningBg,
+    borderRadius: TodayRadii.xl,
+    borderWidth: 3,
+    borderColor: TodayColors.warning,
+    padding: TodaySpacing[20],
+    alignItems: 'center',
+  },
+  celebrationEmoji: {
+    fontSize: 36,
+  },
+  celebrationTitle: {
+    marginTop: TodaySpacing[6],
+    fontSize: TodayTypography.h3.fontSize,
+    lineHeight: TodayTypography.h3.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.warningDark,
+  },
+  celebrationSubtitle: {
+    marginTop: TodaySpacing[2],
+    fontSize: TodayTypography.body.fontSize,
+    lineHeight: TodayTypography.body.lineHeight,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: '#B45309',
+  },
+  refreshFullWrapper: {
+    marginTop: TodaySpacing[12],
+  },
+});

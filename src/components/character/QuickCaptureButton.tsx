@@ -6,14 +6,19 @@ const SHADOW_OFFSET = 4;
 
 interface Props {
   onPress: () => void;
+  pulse?: boolean;
 }
 
-export function QuickCaptureButton({ onPress }: Props) {
+export function QuickCaptureButton({ onPress, pulse = false }: Props) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Subtle pulse animation on mount
   useEffect(() => {
+    if (!pulse) {
+      pulseAnim.setValue(1);
+      return;
+    }
     const pulse = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
@@ -30,7 +35,7 @@ export function QuickCaptureButton({ onPress }: Props) {
     );
     pulse.start();
     return () => pulse.stop();
-  }, [pulseAnim]);
+  }, [pulse, pulseAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -49,12 +54,9 @@ export function QuickCaptureButton({ onPress }: Props) {
 
   return (
     <View style={styles.container}>
-      <Animated.View
-        style={[
-          styles.pulseRing,
-          { transform: [{ scale: pulseAnim }] },
-        ]}
-      />
+      {pulse && (
+        <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
+      )}
       <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}

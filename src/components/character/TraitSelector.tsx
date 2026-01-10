@@ -1,16 +1,18 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CORE_TRAITS } from '@/data/characterScenarios';
+import { TodayTypography } from '@/constants/todayTokens';
 
 interface Props {
   selectedTraitId: string | null;
   onSelectTrait: (traitId: string) => void;
+  title?: string;
 }
 
-export function TraitSelector({ selectedTraitId, onSelectTrait }: Props) {
+export function TraitSelector({ selectedTraitId, onSelectTrait, title = 'Choose a trait' }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>What character trait?</Text>
+      <Text style={styles.title}>{title}</Text>
       <View style={styles.grid}>
         {CORE_TRAITS.map((trait) => {
           const isSelected = selectedTraitId === trait.id;
@@ -38,7 +40,8 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: TodayTypography.bricolageBold,
     color: '#1A5F4A',
     marginBottom: 16,
     textAlign: 'center',
@@ -70,11 +73,13 @@ const styles = StyleSheet.create({
   traitName: {
     fontSize: 11,
     fontWeight: '500',
+    fontFamily: TodayTypography.poppinsSemiBold,
     color: '#78716C',
     textAlign: 'center',
   },
   traitNameSelected: {
     color: '#1A5F4A',
-    fontWeight: '600',
+    fontWeight: '700',
+    fontFamily: TodayTypography.bricolageBold,
   },
 });

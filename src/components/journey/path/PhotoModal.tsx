@@ -1,43 +1,30 @@
 /**
  * PhotoModal Component
  *
- * Full-screen modal for viewing a day's photo with elite motion design.
- * Features cinematic scale-up entry, blur backdrop, and swipe-to-dismiss.
+ * Full-screen modal for viewing a day's photo.
+ * Features cinematic entry, blur backdrop, and swipe-to-dismiss.
  */
 
-import React, { memo, useEffect } from 'react';
-import {
-  Dimensions,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React, { memo, useEffect, useMemo } from 'react';
+import { Dimensions, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
-  interpolate,
-  Extrapolation,
-  runOnJS,
 } from 'react-native-reanimated';
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { format, parseISO } from 'date-fns';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ExclamationTriangleIcon, MinusIcon, PhotoIcon, SparklesIcon } from 'react-native-heroicons/solid';
 
 import type { JourneyDay } from '@/types/journey';
-import { JourneyColors, JourneyAnimations, JourneySizes } from '@/constants/journeyTokens';
+import { JourneyAnimations } from '@/constants/journeyTokens';
+import { TodayColors, TodayRadii, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 import { lightHaptic } from '@/utils/haptics';
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 interface PhotoModalProps {
   visible: boolean;
@@ -45,17 +32,9 @@ interface PhotoModalProps {
   onClose: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const PHOTO_SIZE = Math.min(SCREEN_WIDTH - 48, 340);
 const { modalSpring, dismissThreshold, fadeInDuration, fadeOutDuration } = JourneyAnimations;
-
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
 
 function formatDate(dateStr: string): string {
   try {
@@ -66,94 +45,95 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function getSentimentEmoji(sentiment?: 'happy' | 'neutral' | 'tough'): string {
+type Sentiment = NonNullable<JourneyDay['sentiment']>;
+
+function sentimentConfig(sentiment: Sentiment): {
+  label: string;
+  icon: React.ReactNode;
+  bg: string;
+  fg: string;
+} {
   switch (sentiment) {
     case 'happy':
-      return '😊';
+      return {
+        label: 'Great day',
+        icon: <SparklesIcon size={16} color={TodayColors.success} />,
+        bg: 'rgba(22,163,74,0.10)',
+        fg: TodayColors.textPrimary,
+      };
     case 'neutral':
-      return '😐';
+      return {
+        label: 'Okay day',
+        icon: <MinusIcon size={16} color={TodayColors.textMuted} />,
+        bg: 'rgba(107,114,128,0.10)',
+        fg: TodayColors.textPrimary,
+      };
     case 'tough':
-      return '😓';
-    default:
-      return '';
+      return {
+        label: 'Tough day',
+        icon: <ExclamationTriangleIcon size={16} color={TodayColors.warning} />,
+        bg: 'rgba(245,158,11,0.12)',
+        fg: TodayColors.textPrimary,
+      };
   }
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 function PhotoModalComponent({ visible, day, onClose }: PhotoModalProps) {
-  // Animation values
   const scale = useSharedValue(0);
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(0);
 
-  // Entry/exit animations
   useEffect(() => {
     if (visible) {
-      // Cinematic entry - scale up with spring bounce
       opacity.value = withTiming(1, { duration: fadeInDuration });
       scale.value = withSpring(1, modalSpring);
-    } else {
-      // Quick exit
-      opacity.value = withTiming(0, { duration: fadeOutDuration });
-      scale.value = withTiming(0, { duration: fadeOutDuration + 50 });
-      translateY.value = withTiming(0, { duration: fadeOutDuration });
+      return;
     }
-  }, [visible, opacity, scale, translateY]);
 
-  // Swipe down to dismiss gesture
+    opacity.value = withTiming(0, { duration: fadeOutDuration });
+    scale.value = withTiming(0, { duration: fadeOutDuration + 50 });
+    translateY.value = withTiming(0, { duration: fadeOutDuration });
+  }, [opacity, scale, translateY, visible]);
+
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
-      // Only allow downward swipe
-      if (event.translationY > 0) {
-        translateY.value = event.translationY;
-      }
+      if (event.translationY > 0) translateY.value = event.translationY;
     })
     .onEnd((event) => {
       if (event.translationY > dismissThreshold) {
-        // Dismiss threshold reached
         runOnJS(lightHaptic)();
         runOnJS(onClose)();
-      } else {
-        // Snap back
-        translateY.value = withSpring(0, { damping: 20 });
+        return;
       }
+      translateY.value = withSpring(0, { damping: 20 });
     });
 
-  // Animated styles
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   const cardStyle = useAnimatedStyle(() => {
-    const dismissProgress = interpolate(
-      translateY.value,
-      [0, 200],
-      [0, 1],
-      Extrapolation.CLAMP
-    );
-
+    const dismissProgress = interpolate(translateY.value, [0, 200], [0, 1], Extrapolation.CLAMP);
     return {
       transform: [
         { scale: scale.value * (1 - dismissProgress * 0.15) },
         { translateY: translateY.value },
       ],
-      opacity: interpolate(dismissProgress, [0, 1], [1, 0.6]),
+      opacity: interpolate(dismissProgress, [0, 1], [1, 0.65]),
     };
   });
 
-  // Don't render if not visible and animation complete
-  if (!visible && opacity.value === 0) return null;
+  const sentiment = useMemo(() => {
+    if (!day?.sentiment) return null;
+    return sentimentConfig(day.sentiment);
+  }, [day?.sentiment]);
+
   if (!day) return null;
+  if (!visible && opacity.value === 0) return null;
 
   return (
     <GestureHandlerRootView style={styles.gestureRoot}>
       <View style={styles.container}>
-        {/* Blurred backdrop */}
         <Animated.View style={[styles.backdrop, backdropStyle]}>
-          <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} />
+          <BlurView intensity={22} tint="light" style={StyleSheet.absoluteFill} />
           <View style={styles.backdropOverlay} />
           <Pressable
             style={StyleSheet.absoluteFill}
@@ -162,58 +142,39 @@ function PhotoModalComponent({ visible, day, onClose }: PhotoModalProps) {
           />
         </Animated.View>
 
-        {/* Photo card */}
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.card, cardStyle]}>
-            {/* Drag indicator */}
             <View style={styles.dragIndicator} />
 
-            {/* Photo frame */}
             <View style={styles.photoFrame}>
               {day.photoUri ? (
-                <Image
-                  source={{ uri: day.photoUri }}
-                  style={styles.photo}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: day.photoUri }} style={styles.photo} resizeMode="cover" />
               ) : (
                 <View style={styles.photoPlaceholder}>
-                  <Text style={styles.placeholderEmoji}>📷</Text>
+                  <PhotoIcon size={42} color={TodayColors.textMuted} />
                   <Text style={styles.placeholderText}>No photo</Text>
                 </View>
               )}
             </View>
 
-            {/* Day info */}
             <View style={styles.infoContainer}>
               <Text style={styles.dayLabel}>Day {day.dayNumber}</Text>
               <Text style={styles.dateText}>{formatDate(day.date)}</Text>
 
-              {/* Sentiment badge */}
-              {day.sentiment && (
-                <View style={styles.sentimentBadge}>
-                  <Text style={styles.sentimentEmoji}>
-                    {getSentimentEmoji(day.sentiment)}
-                  </Text>
-                  <Text style={styles.sentimentText}>
-                    {day.sentiment === 'happy'
-                      ? 'Great day'
-                      : day.sentiment === 'neutral'
-                      ? 'Okay day'
-                      : 'Tough day'}
+              {sentiment && (
+                <View style={[styles.sentimentBadge, { backgroundColor: sentiment.bg }]}>
+                  {sentiment.icon}
+                  <Text style={[styles.sentimentText, { color: sentiment.fg }]}>
+                    {sentiment.label}
                   </Text>
                 </View>
               )}
 
-              {/* Reflection text */}
               {day.reflectionText && (
-                <Text style={styles.reflectionText}>
-                  "{day.reflectionText}"
-                </Text>
+                <Text style={styles.reflectionText}>"{day.reflectionText}"</Text>
               )}
             </View>
 
-            {/* Close hint */}
             <Text style={styles.closeHint}>Swipe down or tap outside to close</Text>
           </Animated.View>
         </GestureDetector>
@@ -221,10 +182,6 @@ function PhotoModalComponent({ visible, day, onClose }: PhotoModalProps) {
     </GestureHandlerRootView>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   gestureRoot: {
@@ -241,34 +198,37 @@ const styles = StyleSheet.create({
   },
   backdropOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(17, 24, 39, 0.35)',
   },
   card: {
     width: PHOTO_SIZE + 32,
-    backgroundColor: '#FFFFFF',
-    borderRadius: JourneySizes.modalBorderRadius,
-    padding: 16,
+    backgroundColor: TodayColors.card,
+    borderRadius: TodayRadii.xl,
+    padding: TodaySpacing[16],
     alignItems: 'center',
-    // Elevated shadow
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.25,
     shadowRadius: 24,
-    elevation: 24,
+    elevation: 20,
   },
   dragIndicator: {
     width: 40,
     height: 4,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 2,
-    marginBottom: 16,
+    backgroundColor: TodayColors.strokeSubtle,
+    borderRadius: TodayRadii.pill,
+    marginBottom: TodaySpacing[16],
   },
   photoFrame: {
     width: PHOTO_SIZE,
     height: PHOTO_SIZE,
-    borderRadius: 16,
+    borderRadius: TodayRadii.lg,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(17,24,39,0.04)',
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
   },
   photo: {
     width: '100%',
@@ -278,72 +238,66 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  placeholderEmoji: {
-    fontSize: 48,
-    marginBottom: 8,
+    gap: TodaySpacing[8],
   },
   placeholderText: {
     fontSize: 14,
-    color: JourneyColors.textMuted,
-    fontFamily: 'Poppins-Regular',
+    lineHeight: 20,
+    color: TodayColors.textMuted,
+    fontFamily: TodayTypography.poppinsSemiBold,
   },
   infoContainer: {
     width: '100%',
-    paddingTop: 16,
+    paddingTop: TodaySpacing[16],
     alignItems: 'center',
   },
   dayLabel: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: JourneyColors.textDark,
-    fontFamily: 'Poppins-Bold',
+    fontSize: 22,
+    lineHeight: 28,
+    color: TodayColors.textPrimary,
+    fontFamily: TodayTypography.bricolageBold,
   },
   dateText: {
-    fontSize: 14,
-    color: JourneyColors.textMuted,
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 16,
+    color: TodayColors.textMuted,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    marginTop: TodaySpacing[4],
   },
   sentimentBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: '#FFF7ED',
-    borderRadius: 16,
-    gap: 6,
-  },
-  sentimentEmoji: {
-    fontSize: 18,
+    gap: TodaySpacing[8],
+    marginTop: TodaySpacing[12],
+    paddingHorizontal: TodaySpacing[12],
+    paddingVertical: TodaySpacing[8],
+    borderRadius: TodayRadii.pill,
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
   },
   sentimentText: {
-    fontSize: 13,
-    color: JourneyColors.textDark,
-    fontFamily: 'Poppins-Medium',
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: TodayTypography.poppinsSemiBold,
   },
   reflectionText: {
-    fontSize: 15,
-    color: '#4B5563',
-    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    color: TodayColors.textSecondary,
+    fontFamily: TodayTypography.poppinsSemiBold,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: 14,
-    paddingHorizontal: 8,
-    lineHeight: 22,
+    marginTop: TodaySpacing[12],
+    paddingHorizontal: TodaySpacing[8],
   },
   closeHint: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 16,
+    fontSize: 12,
+    lineHeight: 16,
+    color: TodayColors.textMuted,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    marginTop: TodaySpacing[16],
   },
 });
 
-// ---------------------------------------------------------------------------
-// Export
-// ---------------------------------------------------------------------------
-
 export const PhotoModal = memo(PhotoModalComponent);
+

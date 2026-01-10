@@ -1,18 +1,16 @@
 /**
  * JourneyHeader Component
  *
- * Displays streak counter and connection depth stats in a
- * Duolingo-style yellow header bar.
+ * Today-aligned header: summary + today checkpoint.
  */
 
 import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { CameraIcon, FireIcon, PhotoIcon, SparklesIcon } from 'react-native-heroicons/solid';
 
-import {
-  JourneyColors,
-  JourneySizes,
-  ConnectionDepthLevels,
-} from '@/constants/journeyTokens';
+import { PrimaryButton } from '@/components/common/Button';
+import { ConnectionDepthLevels } from '@/constants/journeyTokens';
+import { TodayColors, TodayRadii, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -22,6 +20,10 @@ interface JourneyHeaderProps {
   streak: number;
   connectionLevel: number;
   connectionPoints: number;
+  todayDayNumber?: number;
+  todayHasPhoto?: boolean;
+  primaryActionLabel: string;
+  onPrimaryAction: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -38,7 +40,7 @@ function getProgressToNextLevel(points: number, level: number): number {
   const nextLevel = ConnectionDepthLevels.find((l) => l.level === level + 1);
 
   if (!currentLevel) return 0;
-  if (!nextLevel) return 100; // Max level
+  if (!nextLevel) return 100;
 
   const levelRange = nextLevel.minPoints - currentLevel.minPoints;
   const progressInLevel = points - currentLevel.minPoints;
@@ -54,36 +56,65 @@ function JourneyHeaderComponent({
   streak,
   connectionLevel,
   connectionPoints,
+  todayDayNumber,
+  todayHasPhoto,
+  primaryActionLabel,
+  onPrimaryAction,
 }: JourneyHeaderProps) {
   const progress = getProgressToNextLevel(connectionPoints, connectionLevel);
   const levelTitle = getLevelTitle(connectionLevel);
 
   return (
     <View style={styles.container}>
-      {/* Streak Counter */}
-      <View style={styles.statCard}>
-        <Text style={styles.statIcon}>🔥</Text>
-        <View style={styles.statContent}>
-          <Text style={styles.statValue}>{streak}</Text>
-          <Text style={styles.statLabel}>day streak</Text>
+      <View style={styles.summaryCard}>
+        <View style={styles.metricsRow}>
+          <View style={styles.metric}>
+            <View style={styles.metricIcon}>
+              <FireIcon size={20} color={TodayColors.ctaSecondary} />
+            </View>
+            <View>
+              <Text style={styles.metricValue}>{streak}</Text>
+              <Text style={styles.metricLabel}>day streak</Text>
+            </View>
+          </View>
+
+          <View style={styles.metricsDivider} />
+
+          <View style={styles.metric}>
+            <View style={styles.metricIcon}>
+              <SparklesIcon size={20} color={TodayColors.ctaPrimary} />
+            </View>
+            <View>
+              <Text style={styles.metricValue}>Level {connectionLevel}</Text>
+              <Text style={styles.metricLabel}>{levelTitle}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.progressTrack} accessibilityRole="progressbar">
+          <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
       </View>
 
-      {/* Connection Depth */}
-      <View style={styles.statCard}>
-        <Text style={styles.statIcon}>💎</Text>
-        <View style={styles.statContent}>
-          <Text style={styles.statValue}>Level {connectionLevel}</Text>
-          <Text style={styles.statLabel}>{levelTitle}</Text>
-        </View>
-
-        {/* Progress bar to next level */}
-        <View style={styles.progressBarContainer}>
-          <View style={styles.progressBar}>
-            <View
-              style={[styles.progressFill, { width: `${progress}%` }]}
-            />
-          </View>
+      <View style={styles.todayCard}>
+        <Text style={styles.todayTitle}>Today checkpoint</Text>
+        <Text style={styles.todaySubtitle}>
+          {todayDayNumber ? `Day ${todayDayNumber}` : 'Preparing your journey…'}
+        </Text>
+        <View style={{ marginTop: TodaySpacing[12] }}>
+          <PrimaryButton
+            title={primaryActionLabel}
+            onPress={onPrimaryAction}
+            fullWidth
+            disabled={!todayDayNumber}
+            leftIcon={
+              todayHasPhoto ? (
+                <PhotoIcon size={18} color={TodayColors.textInverse} />
+              ) : (
+                <CameraIcon size={18} color={TodayColors.textInverse} />
+              )
+            }
+          />
         </View>
       </View>
     </View>
@@ -96,64 +127,93 @@ function JourneyHeaderComponent({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: JourneyColors.headerYellow,
-    // Subtle bottom shadow
+    gap: TodaySpacing[12],
+  },
+  summaryCard: {
+    backgroundColor: TodayColors.card,
+    borderRadius: TodayRadii.lg,
+    padding: TodaySpacing[16],
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  statCard: {
+  metricsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: JourneySizes.statCardRadius,
-    minWidth: 140,
+    gap: TodaySpacing[12],
+    marginBottom: TodaySpacing[12],
   },
-  statIcon: {
-    fontSize: 22,
-    marginRight: 10,
-  },
-  statContent: {
+  metric: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TodaySpacing[8],
   },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: JourneyColors.textDark,
-    fontFamily: 'Poppins-Bold',
+  metricIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: TodayRadii.sm,
+    backgroundColor: TodayColors.bgApp,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  statLabel: {
-    fontSize: 11,
-    color: JourneyColors.textDark,
-    opacity: 0.7,
-    fontFamily: 'Poppins-Regular',
+  metricValue: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: TodayColors.textPrimary,
+    fontFamily: TodayTypography.bricolageSemiBold,
+  },
+  metricLabel: {
     marginTop: -2,
+    fontSize: 12,
+    lineHeight: 16,
+    color: TodayColors.textSecondary,
+    fontFamily: TodayTypography.poppinsSemiBold,
   },
-  progressBarContainer: {
-    position: 'absolute',
-    bottom: 6,
-    left: 14,
-    right: 14,
+  metricsDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: TodayColors.strokeSubtle,
   },
-  progressBar: {
-    height: 3,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 2,
+  progressTrack: {
+    height: 12,
+    borderRadius: TodayRadii.pill,
+    backgroundColor: TodayColors.ctaDisabled,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: JourneyColors.accentEmerald,
-    borderRadius: 2,
+    backgroundColor: TodayColors.ctaPrimary,
+    borderRadius: TodayRadii.pill,
+  },
+  todayCard: {
+    backgroundColor: TodayColors.card,
+    borderRadius: TodayRadii.lg,
+    padding: TodaySpacing[16],
+    borderWidth: 1,
+    borderColor: TodayColors.strokeSubtle,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  todayTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: TodayColors.textPrimary,
+    fontFamily: TodayTypography.bricolageSemiBold,
+  },
+  todaySubtitle: {
+    marginTop: TodaySpacing[4],
+    fontSize: 14,
+    lineHeight: 20,
+    color: TodayColors.textSecondary,
+    fontFamily: TodayTypography.poppinsSemiBold,
   },
 });
 

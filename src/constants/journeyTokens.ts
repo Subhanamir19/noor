@@ -1,58 +1,44 @@
 /**
  * Journey Screen Design Tokens
  *
- * Visual constants for the Duolingo-style journey path including
- * colors, sizes, animations, and layout configuration.
+ * Visual constants for the Journey screen, aligned with the Today screen UI system.
+ *
+ * Journey-specific tokens should be additive (node states, path layout),
+ * while base surfaces/typography should reuse Today tokens.
  */
+
+import { TodayColors, TodayRadii, TodaySpacing } from './todayTokens';
 
 // ---------------------------------------------------------------------------
 // Colors
 // ---------------------------------------------------------------------------
 
 export const JourneyColors = {
-  // Background
-  background: '#1A1A2E',
-  headerYellow: '#FFD93D',
-  headerYellowDark: '#E6C435',
+  // Surfaces (Today-aligned)
+  background: TodayColors.bgApp,
+  card: TodayColors.card,
+  strokeSubtle: TodayColors.strokeSubtle,
+  strokeStrong: TodayColors.strokeStrong,
 
-  // Node States - Pink (logged/captured)
-  nodePinkLight: '#FDA4AF',
-  nodePinkDark: '#FB7185',
-  nodePinkShadow: '#BE123C',
+  // Text (Today-aligned)
+  textPrimary: TodayColors.textPrimary,
+  textSecondary: TodayColors.textSecondary,
+  textMuted: TodayColors.textMuted,
+  textInverse: TodayColors.textInverse,
 
-  // Node States - Gray (missed)
-  nodeGrayLight: '#6B7280',
-  nodeGrayDark: '#4B5563',
-  nodeGrayShadow: '#374151',
-
-  // Node States - Gold (today)
-  nodeGoldLight: '#FCD34D',
-  nodeGoldDark: '#F59E0B',
-  nodeGoldShadow: '#B45309',
-  nodeGoldGlow: '#FCD34D',
-
-  // Node States - Locked
-  nodeLockedLight: '#374151',
-  nodeLockedDark: '#1F2937',
-  nodeLockedShadow: '#111827',
+  // CTAs (Today-aligned)
+  ctaPrimary: TodayColors.ctaPrimary,
+  ctaPrimaryShadow: TodayColors.ctaPrimaryShadow,
+  ctaSecondary: TodayColors.ctaSecondary,
+  ctaSecondaryShadow: TodayColors.ctaSecondaryShadow,
 
   // Connector
-  connectorLine: '#4B5563',
-  connectorLineDark: '#374151',
+  connectorBase: '#CBD5E1',
+  connectorActive: TodayColors.ctaPrimary,
 
-  // Text
-  textPrimary: '#FFFFFF',
-  textSecondary: '#9CA3AF',
-  textMuted: '#6B7280',
-  textDark: '#1A1A2E',
-
-  // Accents
-  accentEmerald: '#10B981',
-  accentGold: '#F59E0B',
-
-  // Glossy highlight
-  glossyHighlight: 'rgba(255, 255, 255, 0.3)',
-  glossyHighlightStrong: 'rgba(255, 255, 255, 0.4)',
+  // Node highlights
+  glossyHighlight: 'rgba(255, 255, 255, 0.55)',
+  nodeTodayGlow: 'rgba(255, 212, 59, 0.45)',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -63,40 +49,33 @@ export const JourneySizes = {
   // Node dimensions
   nodeSize: 64,
   nodeShadowHeight: 8,
-  nodeGlowSize: 84, // nodeSize + 20
+  nodeGlowSize: 92, // nodeSize + 28
 
   // Chest dimensions
   chestSize: 72,
+  chestShadowHeight: 8,
 
   // FAB dimensions
-  fabSize: 64,
-  fabShadowHeight: 6,
-
-  // Character dimensions
-  characterWidth: 80,
-  characterHeight: 100,
+  fabSize: 56,
+  fabShadowHeight: 5,
 
   // Path layout
   verticalSpacing: 100,
-  waveAmplitude: 80,
-  waveCenterX: 120, // Offset from left for character space
+  waveAmplitude: 84,
 
   // Connector
   connectorStrokeWidth: 4,
   connectorDashArray: '8,8',
 
   // Header
-  headerHeight: 80,
-  statCardHeight: 52,
-  statCardRadius: 12,
+  headerCardRadius: TodayRadii.lg,
 
   // Modal
-  modalPhotoSize: 320, // SCREEN_WIDTH - 48 approx
-  modalBorderRadius: 24,
+  modalBorderRadius: TodayRadii.xl,
 
   // Lock message
-  lockMessageRadius: 16,
-  lockIconSize: 48,
+  lockMessageRadius: TodayRadii.lg,
+  lockIconSize: 44,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -119,7 +98,7 @@ export const JourneyAnimations = {
   },
 
   // Glow pulse duration (ms)
-  glowPulseDuration: 1000,
+  glowPulseDuration: 1200,
 
   // Press scale factor
   pressScale: 0.92,
@@ -149,15 +128,11 @@ export const JourneyLayout = {
   milestoneFrequency: 7,
 
   // Path padding
-  pathPaddingTop: 40,
-  pathPaddingBottom: 100,
+  pathPaddingTop: TodaySpacing[16],
+  pathPaddingBottom: 140,
 
-  // Horizontal padding
-  horizontalPadding: 20,
-
-  // Character position
-  characterLeftOffset: 10,
-  characterTopOffset: 40,
+  // Horizontal padding (path container insets)
+  horizontalPadding: TodaySpacing[16],
 
   // Lock message position
   lockMessageBottomOffset: 20,
@@ -185,22 +160,22 @@ export const ConnectionDepthLevels = [
 // ---------------------------------------------------------------------------
 
 export const NodeGradients = {
-  logged: ['#FDA4AF', '#FB7185'] as const,
-  missed: ['#6B7280', '#4B5563'] as const,
-  today: ['#FCD34D', '#F59E0B'] as const,
-  locked: ['#374151', '#1F2937'] as const,
+  logged: ['#FF8BC3', '#FF6FAE'] as const,
+  missed: ['#CBD5E1', '#B6C2D1'] as const,
+  today: ['#FFD43B', '#FFB400'] as const,
+  locked: ['#E5E7EB', '#D1D5DB'] as const,
 } as const;
 
 export const NodeShadowColors = {
-  logged: '#BE123C',
-  missed: '#374151',
-  today: '#B45309',
-  locked: '#111827',
+  logged: '#D83B7D',
+  missed: '#94A3B8',
+  today: '#D09A00',
+  locked: '#C7CBD1',
 } as const;
 
 export const NodeTextColors = {
-  logged: '#FFFFFF',
-  missed: '#9CA3AF',
-  today: '#1A1A2E',
-  locked: '#4B5563',
+  logged: TodayColors.textInverse,
+  missed: '#475569',
+  today: TodayColors.textPrimary,
+  locked: TodayColors.textMuted,
 } as const;

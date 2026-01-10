@@ -16,6 +16,11 @@ const VARIANTS = {
     shadow: '#58A700',
     text: '#FFFFFF',
   },
+  teal: {
+    bg: '#0F766E',
+    shadow: '#0B5B55',
+    text: '#FFFFFF',
+  },
   secondary: {
     bg: '#1CB0F6',
     shadow: '#1899D6',

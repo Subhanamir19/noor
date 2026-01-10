@@ -17,6 +17,7 @@ interface Props {
   traitId: string;
   onClose: () => void;
   onLogMoment: () => void;
+  onNurtureTrait: () => void;
 }
 
 const TREE_STATE_INFO: Record<TreeState, { title: string; description: string; color: string }> = {
@@ -48,6 +49,7 @@ export function TreeDetailModal({
   traitId,
   onClose,
   onLogMoment,
+  onNurtureTrait,
 }: Props) {
   const trait = getTraitById(traitId);
   const treeState = tree ? calculateTreeState(tree) : 'wilting';
@@ -182,6 +184,9 @@ export function TreeDetailModal({
 
           {/* Action button */}
           <View style={styles.footer}>
+            <Pressable style={styles.nurtureButton} onPress={onNurtureTrait}>
+              <Text style={styles.nurtureButtonText}>Nurture This Trait</Text>
+            </Pressable>
             <Pressable style={styles.logButton} onPress={onLogMoment}>
               <Text style={styles.logButtonText}>Log a Moment</Text>
             </Pressable>
@@ -342,7 +347,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
   },
-  logButton: {
+  nurtureButton: {
     backgroundColor: '#58CC02',
     borderRadius: 16,
     paddingVertical: 16,
@@ -352,11 +357,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 0,
     elevation: 4,
+    marginBottom: 10,
+  },
+  nurtureButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  logButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
   },
   logButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: '#1A5F4A',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },

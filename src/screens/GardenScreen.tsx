@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
@@ -20,7 +20,6 @@ type Props = CompositeScreenProps<
 export function GardenScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
   const trees = useCharacterStore((state) => state.trees);
-  const isLoading = useCharacterStore((state) => state.isLoading);
   const loadTrees = useCharacterStore((state) => state.loadTrees);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -28,6 +27,8 @@ export function GardenScreen({ navigation }: Props) {
   const [selectedTraitId, setSelectedTraitId] = useState<string | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showQuickCapture, setShowQuickCapture] = useState(false);
+  const [sheetDefaultMode, setSheetDefaultMode] = useState<'practice' | 'log'>('practice');
+  const [sheetTraitId, setSheetTraitId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -42,7 +43,11 @@ export function GardenScreen({ navigation }: Props) {
     setRefreshing(false);
   };
 
-  const handleTreePress = (tree: CharacterTree | null, traitId: string) => {
+  const handleTraitPress = (traitId: string) => {
+    navigation.navigate('TraitPracticeList', { traitId });
+  };
+
+  const handleTraitLongPress = (tree: CharacterTree | null, traitId: string) => {
     setSelectedTree(tree);
     setSelectedTraitId(traitId);
     setShowDetailModal(true);
@@ -50,11 +55,21 @@ export function GardenScreen({ navigation }: Props) {
 
   const handleLogMoment = () => {
     setShowDetailModal(false);
+    setSheetDefaultMode('log');
+    setSheetTraitId(selectedTraitId);
     setShowQuickCapture(true);
+  };
+
+  const handleNurtureTrait = () => {
+    setShowDetailModal(false);
+    if (selectedTraitId) {
+      navigation.navigate('TraitPracticeList', { traitId: selectedTraitId });
+    }
   };
 
   const handleQuickCaptureClose = () => {
     setShowQuickCapture(false);
+    setSheetTraitId(null);
     // Refresh trees after logging
     if (user?.id) {
       loadTrees(user.id);
@@ -75,7 +90,8 @@ export function GardenScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <GardenView
         trees={trees}
-        onTreePress={handleTreePress}
+        onTraitPress={handleTraitPress}
+        onTraitLongPress={handleTraitLongPress}
         refreshing={refreshing}
         onRefresh={handleRefresh}
       />
@@ -90,12 +106,16 @@ export function GardenScreen({ navigation }: Props) {
           setSelectedTraitId(null);
         }}
         onLogMoment={handleLogMoment}
+        onNurtureTrait={handleNurtureTrait}
       />
 
       {user?.id && (
         <QuickCaptureSheet
           visible={showQuickCapture}
           userId={user.id}
+          defaultMode={sheetDefaultMode}
+          initialTraitId={sheetTraitId}
+          allowPractice={false}
           onClose={handleQuickCaptureClose}
         />
       )}

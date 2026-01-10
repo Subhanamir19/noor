@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TodayTypography } from '@/constants/todayTokens';
 
 const TOOLTIP_STORAGE_KEY = 'noor_quick_capture_tooltip_shown';
 
@@ -57,9 +58,9 @@ export function QuickCaptureTooltip({ visible, onDismiss }: Props) {
     >
       <View style={styles.tooltip}>
         <View style={styles.arrow} />
-        <Text style={styles.title}>Log Character Moments</Text>
+        <Text style={styles.title}>Nurture a Trait</Text>
         <Text style={styles.description}>
-          Tap here to quickly capture wins and struggles in your child's character development
+          Tap here to get a small, Sunnah-guided practice you can do with your child today.
         </Text>
         <Pressable style={styles.button} onPress={onDismiss}>
           <Text style={styles.buttonText}>Got it!</Text>
@@ -137,11 +138,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: TodayTypography.bricolageBold,
     color: '#FFFFFF',
     marginBottom: 8,
   },
   description: {
     fontSize: 14,
+    fontFamily: TodayTypography.poppinsSemiBold,
     color: '#D1FAE5',
     lineHeight: 20,
     marginBottom: 12,
@@ -156,6 +159,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: TodayTypography.bricolageBold,
     color: '#FFFFFF',
   },
 });

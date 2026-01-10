@@ -17,13 +17,15 @@ import type {
 // Screens
 import { ChatScreen } from '@/screens/ChatScreen';
 import { DayDetailScreen } from '@/screens/DayDetailScreen';
-import { GardenScreen } from '@/screens/GardenScreen';
+import { TarbiyahTabScreen } from '@/screens/TarbiyahTabScreen';
 import { JourneyScreen } from '@/screens/JourneyScreenNew';
 import { LibraryScreen } from '@/screens/LibraryScreen';
 import { ModuleDetailScreen } from '@/screens/ModuleDetailScreen';
 import { DailyTaskDetailScreen } from '@/screens/DailyTaskDetailScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { TarbiyahScreen } from '@/screens/TarbiyahScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
+import { TraitPracticeListScreen } from '@/screens/TraitPracticeListScreen';
 import {
   ChildInfoScreen,
   StruggleSelectorScreen,
@@ -152,9 +154,9 @@ function MainNavigator() {
       />
       <MainTab.Screen
         name="Garden"
-        component={GardenScreen}
+        component={TarbiyahTabScreen}
         options={{
-          tabBarLabel: 'Garden',
+          tabBarLabel: 'Tarbiyah',
           tabBarIcon: ({ focused }) => (
             <TabIcon focused={focused} routeName="Garden" />
           ),
@@ -170,6 +172,7 @@ function MainNavigator() {
           ),
         }}
       />
+      {/* Library hidden for MVP - uncomment to re-enable
       <MainTab.Screen
         name="Library"
         component={LibraryScreen}
@@ -180,6 +183,7 @@ function MainNavigator() {
           ),
         }}
       />
+      */}
     </MainTab.Navigator>
   );
 }
@@ -237,6 +241,22 @@ export function RootNavigator() {
               options={{
                 animation: 'slide_from_right',
                 presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="TraitPracticeList"
+              component={TraitPracticeListScreen}
+              options={{
+                animation: 'slide_from_right',
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="Tarbiyah"
+              component={TarbiyahScreen}
+              options={{
+                animation: 'fade',
+                presentation: 'fullScreenModal',
               }}
             />
             <RootStack.Screen

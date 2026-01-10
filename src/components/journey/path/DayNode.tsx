@@ -28,6 +28,7 @@ import {
   NodeTextColors,
   JourneyColors,
 } from '@/constants/journeyTokens';
+import { TodayTypography } from '@/constants/todayTokens';
 import { lightHaptic } from '@/utils/haptics';
 
 // ---------------------------------------------------------------------------
@@ -124,34 +125,44 @@ function DayNodeComponent({ dayNumber, status, onPress, testID }: DayNodeProps) 
       accessibilityLabel={`Day ${dayNumber}${status === 'today' ? ', today' : ''}`}
       accessibilityState={{ disabled: isDisabled }}
     >
-      <Animated.View style={[styles.container, animatedContainerStyle]}>
-        {/* Glow effect for today */}
-        {status === 'today' && (
-          <Animated.View style={[styles.glowEffect, animatedGlowStyle]} />
-        )}
+      {({ pressed }) => {
+        const translateY = pressed && !isDisabled ? nodeShadowHeight : 0;
+        const currentShadowHeight = pressed && !isDisabled ? 0 : nodeShadowHeight;
 
-        {/* Node wrapper with shadow */}
-        <View style={styles.nodeWrapper}>
-          {/* Main circle with gradient */}
-          <LinearGradient
-            colors={[...gradientColors]}
-            style={styles.node}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-          >
-            {/* Glossy highlight overlay */}
-            <View style={styles.glossyHighlight} />
+        return (
+          <Animated.View style={[styles.container, animatedContainerStyle]}>
+            {/* Glow effect for today */}
+            {status === 'today' && (
+              <Animated.View style={[styles.glowEffect, animatedGlowStyle]} />
+            )}
 
-            {/* Day number */}
-            <Text style={[styles.dayNumber, { color: textColor }]}>
-              {dayNumber}
-            </Text>
-          </LinearGradient>
+            <View style={styles.nodeWrapper}>
+              {/* Shadow / ledge */}
+              <View style={[styles.shadowLayer, { backgroundColor: shadowColor }]} />
 
-          {/* 3D Shadow/Depth effect */}
-          <View style={[styles.shadowLayer, { backgroundColor: shadowColor }]} />
-        </View>
-      </Animated.View>
+              {/* Surface */}
+              <View
+                style={{
+                  transform: [{ translateY }],
+                  marginBottom: currentShadowHeight,
+                }}
+              >
+                <LinearGradient
+                  colors={[...gradientColors]}
+                  style={styles.node}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                >
+                  <View style={styles.glossyHighlight} />
+                  <Text style={[styles.dayNumber, { color: textColor }]}>
+                    {dayNumber}
+                  </Text>
+                </LinearGradient>
+              </View>
+            </View>
+          </Animated.View>
+        );
+      }}
     </Pressable>
   );
 }
@@ -172,11 +183,11 @@ const styles = StyleSheet.create({
     width: nodeGlowSize,
     height: nodeGlowSize,
     borderRadius: nodeGlowSize / 2,
-    backgroundColor: JourneyColors.nodeGoldGlow,
+    backgroundColor: JourneyColors.nodeTodayGlow,
     top: (nodeSize - nodeGlowSize) / 2,
     left: (nodeSize - nodeGlowSize) / 2,
     // Glow shadow
-    shadowColor: JourneyColors.nodeGoldGlow,
+    shadowColor: JourneyColors.nodeTodayGlow,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 15,
@@ -186,6 +197,7 @@ const styles = StyleSheet.create({
     width: nodeSize,
     height: nodeSize + nodeShadowHeight,
     position: 'relative',
+    justifyContent: 'flex-end',
   },
   node: {
     width: nodeSize,
@@ -196,6 +208,8 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     zIndex: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   glossyHighlight: {
     position: 'absolute',
@@ -209,7 +223,7 @@ const styles = StyleSheet.create({
   dayNumber: {
     fontSize: 22,
     fontWeight: '700',
-    fontFamily: 'Poppins-Bold',
+    fontFamily: TodayTypography.bricolageBold,
     zIndex: 3,
     // Text shadow for depth
     textShadowColor: 'rgba(0, 0, 0, 0.1)',

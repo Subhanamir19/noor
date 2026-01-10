@@ -9,6 +9,8 @@ interface Props {
   leveledUp: boolean;
   newLevel?: number;
   onComplete: () => void;
+  titleOverride?: string;
+  encouragementOverride?: string;
 }
 
 export function MomentConfirmation({
@@ -17,6 +19,8 @@ export function MomentConfirmation({
   leveledUp,
   newLevel,
   onComplete,
+  titleOverride,
+  encouragementOverride,
 }: Props) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -59,6 +63,10 @@ export function MomentConfirmation({
   }, [leveledUp, onComplete, opacityAnim, scaleAnim]);
 
   const isPositive = momentType === 'positive';
+  const titleText = titleOverride || (isPositive ? 'Moment Logged!' : 'Noted!');
+  const encouragementText =
+    encouragementOverride ||
+    (isPositive ? 'Keep nurturing this trait!' : "It's okay, growth takes time.");
 
   return (
     <Animated.View
@@ -76,7 +84,7 @@ export function MomentConfirmation({
 
         {/* Message */}
         <Text style={styles.title}>
-          {isPositive ? 'Moment Logged!' : 'Noted!'}
+          {titleText}
         </Text>
 
         <Text style={styles.subtitle}>
@@ -93,9 +101,7 @@ export function MomentConfirmation({
 
         {/* Encouragement */}
         <Text style={styles.encouragement}>
-          {isPositive
-            ? 'Keep nurturing this trait!'
-            : "It's okay, growth takes time."}
+          {encouragementText}
         </Text>
       </View>
     </Animated.View>

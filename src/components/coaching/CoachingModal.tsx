@@ -1,15 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import type { InterventionTrigger } from '@/services/coachingEngine';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { XMarkIcon } from 'react-native-heroicons/outline';
+
+import { IconButton } from '@/components/common/IconButton';
+import { Button } from '@/components/common/Button';
+import { TodayColors, TodayRadii, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
 import { getTraitById } from '@/data/characterScenarios';
+import type { InterventionTrigger } from '@/services/coachingEngine';
 
 interface Props {
   visible: boolean;
@@ -18,60 +15,27 @@ interface Props {
   onDecline: () => void;
 }
 
-const INTERVENTION_COLORS: Record<string, { bg: string; accent: string; text: string }> = {
-  first_struggle: {
-    bg: '#FFF8E1',
-    accent: '#FFB300',
-    text: '#5D4037',
-  },
-  repeated: {
-    bg: '#FFF3E0',
-    accent: '#FF9800',
-    text: '#4E342E',
-  },
-  persistent: {
-    bg: '#FFEBEE',
-    accent: '#EF5350',
-    text: '#B71C1C',
-  },
-  no_wins: {
-    bg: '#E8F5E9',
-    accent: '#66BB6A',
-    text: '#1B5E20',
-  },
+const INTERVENTION_COLORS: Record<string, { bg: string; border: string }> = {
+  first_struggle: { bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.22)' },
+  repeated: { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.26)' },
+  persistent: { bg: 'rgba(239,68,68,0.10)', border: 'rgba(239,68,68,0.22)' },
+  no_wins: { bg: 'rgba(22,163,74,0.10)', border: 'rgba(22,163,74,0.22)' },
 };
 
 export function CoachingModal({ visible, trigger, onAccept, onDecline }: Props) {
-  const slideAnim = useRef(new Animated.Value(300)).current;
+  const slideAnim = useRef(new Animated.Value(320)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 65,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
+        Animated.spring(slideAnim, { toValue: 0, friction: 9, tension: 70, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: 300,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
+        Animated.timing(slideAnim, { toValue: 320, duration: 180, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
       ]).start();
     }
   }, [visible, slideAnim, fadeAnim]);
@@ -80,90 +44,68 @@ export function CoachingModal({ visible, trigger, onAccept, onDecline }: Props) 
 
   const { script, traitId, type } = trigger;
   const trait = traitId !== 'general' ? getTraitById(traitId) : null;
-  const colors = INTERVENTION_COLORS[type] || INTERVENTION_COLORS.first_struggle;
+  const tone = INTERVENTION_COLORS[type] || INTERVENTION_COLORS.first_struggle;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="none"
-      transparent
-      onRequestClose={onDecline}
-    >
+    <Modal visible={visible} animationType="none" transparent onRequestClose={onDecline}>
       <View style={styles.overlay}>
-        <Animated.View
-          style={[styles.backdrop, { opacity: fadeAnim }]}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={onDecline} />
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onDecline} accessibilityLabel="Dismiss coaching" />
         </Animated.View>
 
         <Animated.View
           style={[
-            styles.modal,
-            { backgroundColor: colors.bg },
-            { transform: [{ translateY: slideAnim }] },
+            styles.sheet,
+            {
+              transform: [{ translateY: slideAnim }],
+              backgroundColor: TodayColors.card,
+              borderColor: TodayColors.strokeSubtle,
+            },
           ]}
         >
-          {/* Header with trait */}
+          {/* Header */}
           <View style={styles.header}>
-            {trait ? (
-              <View style={styles.traitBadge}>
-                <Text style={styles.traitEmoji}>{trait.emoji}</Text>
-                <Text style={styles.traitName}>{trait.name}</Text>
-              </View>
-            ) : (
-              <View style={styles.traitBadge}>
-                <Text style={styles.traitEmoji}>💚</Text>
-                <Text style={styles.traitName}>Coaching</Text>
-              </View>
-            )}
-            <Pressable onPress={onDecline} style={styles.closeButton}>
-              <Text style={styles.closeText}>×</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Title */}
-            <Text style={[styles.title, { color: colors.text }]}>
-              {script.title}
-            </Text>
-
-            {/* Message */}
-            <Text style={styles.message}>{script.message}</Text>
-
-            {/* Islamic Wisdom */}
-            {script.islamicWisdom && (
-              <View style={[styles.wisdomCard, { borderColor: colors.accent }]}>
-                {script.islamicWisdom.arabic && (
-                  <Text style={styles.arabicText}>
-                    {script.islamicWisdom.arabic}
-                  </Text>
-                )}
-                <Text style={styles.translationText}>
-                  "{script.islamicWisdom.translation}"
-                </Text>
-                <Text style={styles.sourceText}>
-                  — {script.islamicWisdom.source}
-                </Text>
-              </View>
-            )}
-
-            {/* Encouragement */}
-            <View style={[styles.encouragementCard, { backgroundColor: colors.accent + '20' }]}>
-              <Text style={styles.encouragementEmoji}>💪</Text>
-              <Text style={[styles.encouragementText, { color: colors.text }]}>
-                {script.encouragement}
+            <View style={styles.badge}>
+              <Text style={styles.badgeEmoji}>{trait?.emoji || '💡'}</Text>
+              <Text style={styles.badgeText} numberOfLines={1}>
+                {trait?.name || 'Coaching'}
               </Text>
             </View>
+            <IconButton
+              variant="ghost"
+              size="sm"
+              onPress={onDecline}
+              accessibilityRole="button"
+              accessibilityLabel="Close coaching"
+              icon={<XMarkIcon size={20} color={TodayColors.textSecondary} />}
+            />
+          </View>
 
-            {/* Challenge */}
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <View style={[styles.callout, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+              <Text style={styles.title}>{script.title}</Text>
+              <Text style={styles.message}>{script.message}</Text>
+            </View>
+
+            {script.islamicWisdom && (
+              <View style={styles.wisdomCard}>
+                {!!script.islamicWisdom.arabic && (
+                  <Text style={styles.arabicText}>{script.islamicWisdom.arabic}</Text>
+                )}
+                <Text style={styles.translationText}>“{script.islamicWisdom.translation}”</Text>
+                <Text style={styles.sourceText}>{script.islamicWisdom.source}</Text>
+              </View>
+            )}
+
+            <View style={styles.encouragementCard}>
+              <Text style={styles.encourageEmoji}>🌿</Text>
+              <Text style={styles.encouragementText}>{script.encouragement}</Text>
+            </View>
+
             {script.challenge && (
               <View style={styles.challengeSection}>
-                <Text style={styles.challengeLabel}>Today's Challenge</Text>
-                <View style={[styles.challengeCard, { borderColor: colors.accent }]}>
-                  <Text style={styles.challengeEmoji}>🎯</Text>
+                <Text style={styles.challengeLabel}>Today’s Challenge</Text>
+                <View style={[styles.challengeCard, { borderColor: TodayColors.strokeSubtle }]}>
                   <Text style={styles.challengeText}>{script.challenge.text}</Text>
                   <Text style={styles.challengeDuration}>
                     Complete within {script.challenge.durationHours} hours
@@ -173,20 +115,25 @@ export function CoachingModal({ visible, trigger, onAccept, onDecline }: Props) 
             )}
           </ScrollView>
 
-          {/* Action buttons */}
+          {/* Actions */}
           <View style={styles.actions}>
-            <Pressable
-              style={[styles.acceptButton, { backgroundColor: colors.accent }]}
+            <Button
+              title={script.challenge ? 'Accept Challenge' : 'Got it'}
+              variant="primary"
+              size="lg"
+              fullWidth
               onPress={onAccept}
-            >
-              <Text style={styles.acceptText}>
-                {script.challenge ? 'Accept Challenge' : 'Got It'}
-              </Text>
-            </Pressable>
-
-            <Pressable style={styles.declineButton} onPress={onDecline}>
-              <Text style={styles.declineText}>Maybe Later</Text>
-            </Pressable>
+              textStyle={{ textTransform: 'none' }}
+            />
+            <View style={{ height: TodaySpacing[12] }} />
+            <Button
+              title="Maybe later"
+              variant="outline"
+              size="lg"
+              fullWidth
+              onPress={onDecline}
+              textStyle={{ textTransform: 'none' }}
+            />
           </View>
         </Animated.View>
       </View>
@@ -203,168 +150,152 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modal: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+  sheet: {
+    borderTopLeftRadius: TodayRadii.lg,
+    borderTopRightRadius: TodayRadii.lg,
     maxHeight: '85%',
-    paddingBottom: 32,
+    borderWidth: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    paddingHorizontal: TodaySpacing[16],
+    paddingTop: TodaySpacing[16],
+    paddingBottom: TodaySpacing[12],
+    borderBottomWidth: 2,
+    borderBottomColor: TodayColors.strokeSubtle,
   },
-  traitBadge: {
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(17,24,39,0.06)',
+    borderRadius: TodayRadii.pill,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: TodayColors.strokeSubtle,
+    flexShrink: 1,
   },
-  traitEmoji: {
-    fontSize: 20,
-    marginRight: 6,
+  badgeEmoji: {
+    fontSize: 18,
+    marginRight: 8,
   },
-  traitName: {
+  badgeText: {
+    fontFamily: TodayTypography.bricolageSemiBold,
+    color: TodayColors.textPrimary,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1A5F4A',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeText: {
-    fontSize: 28,
-    color: '#78716C',
-    fontWeight: '300',
+    flexShrink: 1,
   },
   content: {
-    flex: 1,
-    padding: 20,
+    padding: TodaySpacing[16],
+  },
+  callout: {
+    borderRadius: TodayRadii.md,
+    padding: TodaySpacing[16],
+    borderWidth: 2,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 16,
+    fontFamily: TodayTypography.bricolageBold,
+    fontSize: 22,
+    lineHeight: 28,
+    color: TodayColors.textPrimary,
     textAlign: 'center',
   },
   message: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#374151',
-    marginBottom: 20,
+    marginTop: TodaySpacing[12],
+    fontFamily: TodayTypography.poppinsSemiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: TodayColors.textSecondary,
+    textAlign: 'center',
   },
   wisdomCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderLeftWidth: 4,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    marginTop: TodaySpacing[16],
+    backgroundColor: TodayColors.card,
+    borderRadius: TodayRadii.md,
+    padding: TodaySpacing[16],
+    borderWidth: 2,
+    borderColor: TodayColors.strokeSubtle,
   },
   arabicText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1A5F4A',
-    textAlign: 'center',
-    marginBottom: 8,
     fontFamily: 'System',
+    fontSize: 18,
+    lineHeight: 28,
+    color: TodayColors.textPrimary,
+    textAlign: 'center',
+    marginBottom: TodaySpacing[8],
   },
   translationText: {
-    fontSize: 15,
-    fontStyle: 'italic',
-    color: '#4B5563',
+    fontFamily: TodayTypography.poppinsSemiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: TodayColors.textPrimary,
     textAlign: 'center',
-    marginBottom: 4,
   },
   sourceText: {
+    marginTop: TodaySpacing[8],
+    fontFamily: TodayTypography.poppinsSemiBold,
     fontSize: 12,
-    color: '#9CA3AF',
+    lineHeight: 16,
+    color: TodayColors.textMuted,
     textAlign: 'center',
   },
   encouragementCard: {
+    marginTop: TodaySpacing[16],
+    backgroundColor: 'rgba(88,204,2,0.10)',
+    borderRadius: TodayRadii.md,
+    padding: TodaySpacing[16],
+    borderWidth: 2,
+    borderColor: 'rgba(88,204,2,0.18)',
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 20,
+    gap: 10,
+    alignItems: 'flex-start',
   },
-  encouragementEmoji: {
-    fontSize: 24,
-    marginRight: 12,
+  encourageEmoji: {
+    fontSize: 18,
+    marginTop: 1,
   },
   encouragementText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: TodayTypography.poppinsSemiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: TodayColors.textPrimary,
   },
   challengeSection: {
-    marginBottom: 16,
+    marginTop: TodaySpacing[16],
   },
   challengeLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#78716C',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    fontFamily: TodayTypography.bricolageSemiBold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: TodayColors.textPrimary,
+    marginBottom: TodaySpacing[8],
   },
   challengeCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: TodayColors.card,
+    borderRadius: TodayRadii.md,
+    padding: TodaySpacing[16],
     borderWidth: 2,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: 'center',
-  },
-  challengeEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
   },
   challengeText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#374151',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 8,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    fontSize: 14,
+    lineHeight: 20,
+    color: TodayColors.textPrimary,
   },
   challengeDuration: {
+    marginTop: TodaySpacing[8],
+    fontFamily: TodayTypography.poppinsSemiBold,
     fontSize: 12,
-    color: '#9CA3AF',
+    lineHeight: 16,
+    color: TodayColors.textMuted,
   },
   actions: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  acceptButton: {
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  acceptText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  declineButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  declineText: {
-    fontSize: 14,
-    color: '#78716C',
+    padding: TodaySpacing[16],
+    borderTopWidth: 2,
+    borderTopColor: TodayColors.strokeSubtle,
+    backgroundColor: TodayColors.card,
   },
 });

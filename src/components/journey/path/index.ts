@@ -9,7 +9,6 @@ export { DayNode } from './DayNode';
 export { JourneyHeader } from './JourneyHeader';
 export { JourneyPath } from './JourneyPath';
 export { LockMessage } from './LockMessage';
-export { MotherCharacter } from './MotherCharacter';
 export { PathConnector } from './PathConnector';
 export { PhotoModal } from './PhotoModal';
 export { TreasureChest } from './TreasureChest';

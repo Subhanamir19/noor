@@ -21,5 +21,7 @@ export type RootStackParamList = {
   ModuleDetail: { moduleId: string };
   DayDetail: { date: string; dailyTraitId?: string };
   DailyTaskDetail: { taskId: string };
+  TraitPracticeList: { traitId: string };
+  Tarbiyah: { lessonId?: string } | undefined;
   Settings: undefined;
 };

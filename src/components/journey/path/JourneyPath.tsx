@@ -7,13 +7,10 @@
 
 import React, { memo, useMemo, useCallback } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
-import Animated, {
-  useAnimatedScrollHandler,
-  useSharedValue,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import type { JourneyDay } from '@/types/journey';
-import { JourneyColors, JourneyLayout, JourneySizes } from '@/constants/journeyTokens';
+import { JourneyColors, JourneyLayout } from '@/constants/journeyTokens';
 import {
   calculatePathPositions,
   calculatePathHeight,
@@ -22,7 +19,6 @@ import {
 
 import { DayNode } from './DayNode';
 import { TreasureChest } from './TreasureChest';
-import { MotherCharacter } from './MotherCharacter';
 import { PathConnector } from './PathConnector';
 import { LockMessage } from './LockMessage';
 
@@ -40,16 +36,13 @@ interface JourneyPathProps {
 // ---------------------------------------------------------------------------
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PATH_WIDTH = SCREEN_WIDTH - JourneySizes.characterWidth - 20;
+const PATH_WIDTH = SCREEN_WIDTH - JourneyLayout.horizontalPadding * 2;
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 function JourneyPathComponent({ days, onDayPress }: JourneyPathProps) {
-  // Scroll position for character parallax
-  const scrollY = useSharedValue(0);
-
   // Get visible days range
   const { end: visibleEnd, hasMore } = useMemo(
     () => getVisibleDaysRange(days.length),
@@ -74,12 +67,11 @@ function JourneyPathComponent({ days, onDayPress }: JourneyPathProps) {
     [visibleDays.length, hasMore]
   );
 
-  // Scroll handler for character parallax
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-    },
-  });
+  const activeNodeIndex = useMemo(() => {
+    const todayIndex = visibleDays.findIndex((d) => d.status === 'today');
+    if (todayIndex >= 0) return todayIndex;
+    return visibleDays.reduce((acc, d, idx) => (d.status === 'logged' ? idx : acc), -1);
+  }, [visibleDays]);
 
   // Day press handler
   const handleDayPress = useCallback(
@@ -91,67 +83,55 @@ function JourneyPathComponent({ days, onDayPress }: JourneyPathProps) {
 
   return (
     <View style={styles.container}>
-      {/* Mother Character (Left Side) - Fixed position */}
-      <View style={styles.characterContainer}>
-        <MotherCharacter scrollY={scrollY} />
-      </View>
-
-      {/* Scrollable Path Area */}
       <Animated.ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { minHeight: contentHeight },
-        ]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
       >
-        {/* SVG Connector Lines */}
-        <PathConnector
-          nodes={pathNodes}
-          width={PATH_WIDTH}
-          height={contentHeight}
-        />
+        <View style={[styles.pathCanvas, { width: PATH_WIDTH, minHeight: contentHeight }]}>
+          <PathConnector
+            nodes={pathNodes}
+            width={PATH_WIDTH}
+            height={contentHeight}
+            activeNodeIndex={activeNodeIndex}
+          />
 
-        {/* Day Nodes */}
-        {pathNodes.map((node) => (
-          <View
-            key={node.day.id}
-            style={[
-              styles.nodeContainer,
-              {
-                left: node.x,
-                top: node.y,
-              },
-            ]}
-          >
-            {node.day.isMilestone ? (
-              <TreasureChest
-                day={node.day}
-                onPress={() => handleDayPress(node.day)}
-                testID={`chest-${node.day.dayNumber}`}
-              />
-            ) : (
-              <DayNode
-                dayNumber={node.day.dayNumber}
-                status={node.day.status}
-                onPress={() => handleDayPress(node.day)}
-                testID={`day-${node.day.dayNumber}`}
-              />
-            )}
-          </View>
-        ))}
+          {pathNodes.map((node) => (
+            <View
+              key={node.day.id}
+              style={[
+                styles.nodeContainer,
+                {
+                  left: node.x,
+                  top: node.y,
+                },
+              ]}
+            >
+              {node.day.isMilestone ? (
+                <TreasureChest
+                  day={node.day}
+                  onPress={() => handleDayPress(node.day)}
+                  testID={`chest-${node.day.dayNumber}`}
+                />
+              ) : (
+                <DayNode
+                  dayNumber={node.day.dayNumber}
+                  status={node.day.status}
+                  onPress={() => handleDayPress(node.day)}
+                  testID={`day-${node.day.dayNumber}`}
+                />
+              )}
+            </View>
+          ))}
 
-        {/* Lock Message at Bottom */}
-        {hasMore && (
-          <View style={styles.lockMessageContainer}>
-            <LockMessage />
-          </View>
-        )}
+          {hasMore && (
+            <View style={styles.lockMessageContainer}>
+              <LockMessage />
+            </View>
+          )}
 
-        {/* Bottom padding */}
-        <View style={styles.bottomPadding} />
+          <View style={styles.bottomPadding} />
+        </View>
       </Animated.ScrollView>
     </View>
   );
@@ -164,14 +144,7 @@ function JourneyPathComponent({ days, onDayPress }: JourneyPathProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'row',
     backgroundColor: JourneyColors.background,
-  },
-  characterContainer: {
-    width: JourneySizes.characterWidth,
-    paddingTop: JourneyLayout.characterTopOffset,
-    paddingLeft: JourneyLayout.characterLeftOffset,
-    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
@@ -179,6 +152,9 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: JourneyLayout.pathPaddingTop,
     paddingBottom: JourneyLayout.pathPaddingBottom,
+    alignItems: 'center',
+  },
+  pathCanvas: {
     position: 'relative',
   },
   nodeContainer: {

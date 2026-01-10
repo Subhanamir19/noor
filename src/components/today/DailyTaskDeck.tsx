@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ImageBackground, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ImageBackground, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -12,6 +12,14 @@ import Animated, {
 
 import { Button } from '@/components/common/Button';
 import { getDailyTaskTheme } from '@/constants/dailyTaskThemes';
+import {
+  TodayColors,
+  TodayRadii,
+  TodayShadows,
+  TodaySpacing,
+  TodayTypography,
+  TodayMotion,
+} from '@/constants/todayTokens';
 import type { DailyTask } from '@/types/models';
 
 interface Props {
@@ -23,20 +31,12 @@ interface Props {
   onInteractionChange?: (isInteracting: boolean) => void;
 }
 
-const CARD_RADIUS = 28;
+const CARD_RADIUS = TodayRadii.xxl;
 const CARD_BORDER = 3;
-const CARD_PADDING = 16;
-const CARD_SHADOW_HEIGHT = 6;
+const CARD_PADDING = TodaySpacing[16];
+const CARD_SHADOW_HEIGHT = TodayShadows.cardLedge.height;
 
-const FONT_BRICOLAGE_BOLD = 'BricolageGrotesque-Bold';
-const FONT_BRICOLAGE_SEMIBOLD = 'BricolageGrotesque-SemiBold';
-const FONT_POPPINS_SEMIBOLD = 'Poppins-SemiBold';
-
-const springConfig = {
-  damping: 19,
-  stiffness: 290,
-  mass: 0.75,
-};
+const springConfig = TodayMotion.spring;
 
 function clampValue(value: number, min: number, max: number): number {
   'worklet';
@@ -64,140 +64,100 @@ function DeckCard({
 }) {
   const theme = getDailyTaskTheme(task);
   const title = task.shortTitle || task.title;
+  const isMustDo = label === 'MUST-DO';
 
   return (
-    <View
-      style={{
-        width: cardWidth,
-        height: cardHeight,
-      }}
-    >
+    <View style={{ width: cardWidth, height: cardHeight }}>
+      {/* Shadow layer */}
       <View
-        style={{
-          position: 'absolute',
-          top: CARD_SHADOW_HEIGHT,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          borderRadius: CARD_RADIUS,
-          backgroundColor: 'rgba(0,0,0,0.10)',
-        }}
+        style={[
+          cardStyles.shadow,
+          {
+            top: CARD_SHADOW_HEIGHT,
+            borderRadius: CARD_RADIUS,
+          },
+        ]}
       />
+
+      {/* Card surface */}
       <View
-        style={{
-          flex: 1,
-          borderRadius: CARD_RADIUS,
-          overflow: 'hidden',
-          backgroundColor: theme.themeColor,
-          borderWidth: CARD_BORDER,
-          borderColor: 'rgba(0,0,0,0.08)',
-          marginBottom: CARD_SHADOW_HEIGHT,
-        }}
+        style={[
+          cardStyles.surface,
+          {
+            borderRadius: CARD_RADIUS,
+            backgroundColor: theme.themeColor,
+            borderColor: isCompleted ? TodayColors.success : TodayColors.strokeMedium,
+          },
+        ]}
       >
+        {/* Illustration zone (35% height) */}
         <Pressable
           onPress={onOpenDetails}
           accessibilityRole="button"
-          accessibilityLabel={`Open details for ${title}`}
-          style={{ flex: 1 }}
+          accessibilityLabel={`View details for ${title}`}
+          style={cardStyles.illustrationZone}
         >
           <ImageBackground
             source={theme.image}
             resizeMode="contain"
-            style={{ flex: 1 }}
+            style={cardStyles.illustration}
           />
         </Pressable>
 
-        <View
-          style={{
-            flex: 1.4,
-            backgroundColor: 'rgba(255,255,255,0.92)',
-            padding: CARD_PADDING,
-          }}
-        >
-          <Pressable
-            onPress={onOpenDetails}
-            accessibilityRole="button"
-            accessibilityLabel={`Open details for ${title}`}
-            style={{ flexGrow: 1, flexShrink: 1 }}
-          >
-            <View style={{ flexGrow: 1, flexShrink: 1 }}>
-              {/* Top row: category + progress */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 999,
-                    borderWidth: 2,
-                    borderColor: 'rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: '#1F2937',
-                      letterSpacing: 0.6,
-                      fontFamily: FONT_BRICOLAGE_SEMIBOLD,
-                    }}
-                  >
-                    {label}
-                  </Text>
-                </View>
-
-                <View
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 999,
-                    borderWidth: 2,
-                    borderColor: 'rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <Text style={{ fontSize: 12, color: '#1F2937', fontFamily: FONT_BRICOLAGE_SEMIBOLD }}>
-                    {progressLabel}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ marginTop: 12 }}>
-                <Text style={{ fontSize: 26, color: '#111827', fontFamily: FONT_BRICOLAGE_BOLD }} numberOfLines={2}>
-                  {title}
-                </Text>
-                {!!task.description && (
-                  <Text
-                    style={{
-                      marginTop: 8,
-                      fontSize: 14,
-                      color: '#6B7280',
-                      lineHeight: 20,
-                      fontFamily: FONT_POPPINS_SEMIBOLD,
-                    }}
-                    numberOfLines={3}
-                  >
-                    {task.description}
-                  </Text>
-                )}
-              </View>
-
+        {/* Content zone */}
+        <View style={cardStyles.contentZone}>
+          {/* Top row: category chip + progress */}
+          <View style={cardStyles.topRow}>
+            <View
+              style={[
+                cardStyles.categoryChip,
+                isMustDo ? cardStyles.mustDoChip : cardStyles.bonusChip,
+              ]}
+            >
               <Text
-                style={{
-                  marginTop: 10,
-                  marginBottom: 0,
-                  fontSize: 12,
-                  color: '#1CB0F6',
-                  fontFamily: FONT_POPPINS_SEMIBOLD,
-                }}
+                style={[
+                  cardStyles.categoryChipText,
+                  { color: isMustDo ? TodayColors.successDark : TodayColors.ctaSecondaryPressed },
+                ]}
               >
-                Tap to view details
+                {label}
               </Text>
             </View>
-          </Pressable>
 
-          <View style={{ gap: 12, marginTop: 12 }}>
+            <View style={cardStyles.progressChip}>
+              <Text style={cardStyles.progressChipText}>{progressLabel}</Text>
+            </View>
+          </View>
+
+          {/* Title + Icon */}
+          <View style={cardStyles.titleRow}>
+            {task.icon && <Text style={cardStyles.taskIcon}>{task.icon}</Text>}
+            <Text style={cardStyles.title} numberOfLines={2}>
+              {title}
+            </Text>
+          </View>
+
+          {/* YOUR TASK box - The key redesign element */}
+          <View style={cardStyles.taskBox}>
+            <Text style={cardStyles.taskBoxLabel}>YOUR TASK:</Text>
+            <Text style={cardStyles.taskBoxText} numberOfLines={3}>
+              {task.description || task.title}
+            </Text>
+          </View>
+
+          {/* Metadata row */}
+          <View style={cardStyles.metadataRow}>
+            <Text style={cardStyles.metadataText}>⏱ ~5 min</Text>
+            <Text style={cardStyles.metadataDot}>•</Text>
+            <Text style={cardStyles.metadataText}>
+              {task.category.replace(/_/g, ' ')}
+            </Text>
+          </View>
+
+          {/* Action buttons */}
+          <View style={cardStyles.actionsRow}>
             <Button
-              title={isCompleted ? 'Completed' : 'Mark as complete'}
+              title={isCompleted ? 'Done!' : 'Done!'}
               variant={isCompleted ? 'outline' : 'primary'}
               size="lg"
               fullWidth
@@ -208,11 +168,153 @@ function DeckCard({
               textStyle={{ textTransform: 'none' }}
             />
           </View>
+
+          {/* Secondary link */}
+          <Pressable onPress={onOpenDetails} style={cardStyles.detailsLink}>
+            <Text style={cardStyles.detailsLinkText}>See tips & examples →</Text>
+          </Pressable>
         </View>
       </View>
     </View>
   );
 }
+
+const cardStyles = StyleSheet.create({
+  shadow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: TodayShadows.cardLedge.color,
+  },
+  surface: {
+    flex: 1,
+    overflow: 'hidden',
+    borderWidth: CARD_BORDER,
+    marginBottom: CARD_SHADOW_HEIGHT,
+  },
+  illustrationZone: {
+    flex: 0.35,
+  },
+  illustration: {
+    flex: 1,
+  },
+  contentZone: {
+    flex: 0.65,
+    backgroundColor: TodayColors.bgCardTint,
+    padding: CARD_PADDING,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  categoryChip: {
+    paddingHorizontal: TodaySpacing[12],
+    paddingVertical: TodaySpacing[6],
+    borderRadius: TodayRadii.pill,
+    borderWidth: 2,
+  },
+  mustDoChip: {
+    backgroundColor: TodayColors.successBg,
+    borderColor: TodayColors.successBorder,
+  },
+  bonusChip: {
+    backgroundColor: TodayColors.infoBg,
+    borderColor: TodayColors.infoBorder,
+  },
+  categoryChipText: {
+    fontSize: TodayTypography.tiny.fontSize,
+    lineHeight: TodayTypography.tiny.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  progressChip: {
+    backgroundColor: TodayColors.bgCard,
+    paddingHorizontal: TodaySpacing[12],
+    paddingVertical: TodaySpacing[6],
+    borderRadius: TodayRadii.pill,
+    borderWidth: 2,
+    borderColor: TodayColors.strokeSubtle,
+  },
+  progressChipText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    color: TodayColors.textSecondary,
+    fontFamily: TodayTypography.bricolageSemiBold,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: TodaySpacing[10],
+    gap: TodaySpacing[8],
+  },
+  taskIcon: {
+    fontSize: 24,
+  },
+  title: {
+    flex: 1,
+    fontSize: TodayTypography.h1.fontSize,
+    lineHeight: TodayTypography.h1.lineHeight,
+    color: TodayColors.textPrimary,
+    fontFamily: TodayTypography.bricolageBold,
+  },
+  taskBox: {
+    marginTop: TodaySpacing[10],
+    backgroundColor: TodayColors.bgTaskBox,
+    borderRadius: TodayRadii.sm,
+    padding: TodaySpacing[12],
+    borderWidth: 2,
+    borderColor: TodayColors.strokeTaskBox,
+  },
+  taskBoxLabel: {
+    fontSize: TodayTypography.tiny.fontSize,
+    lineHeight: TodayTypography.tiny.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.ctaPrimary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: TodaySpacing[4],
+  },
+  taskBoxText: {
+    fontSize: TodayTypography.body.fontSize,
+    lineHeight: TodayTypography.body.lineHeight,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textSecondary,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: TodaySpacing[8],
+    gap: TodaySpacing[6],
+  },
+  metadataText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.poppinsMedium,
+    color: TodayColors.textMuted,
+    textTransform: 'capitalize',
+  },
+  metadataDot: {
+    fontSize: TodayTypography.caption.fontSize,
+    color: TodayColors.textMuted,
+  },
+  actionsRow: {
+    marginTop: TodaySpacing[12],
+  },
+  detailsLink: {
+    alignItems: 'center',
+    paddingVertical: TodaySpacing[8],
+    marginTop: TodaySpacing[4],
+  },
+  detailsLinkText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textLink,
+  },
+});
 
 export function DailyTaskDeck({
   tasks,
@@ -408,47 +510,141 @@ export function DailyTaskDeck({
         </GestureDetector>
       </View>
 
-      {/* Navigation hint + dot indicators */}
-      <View style={{ width: cardWidth, marginTop: 12 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700' }}>
-            Swipe left to go back
-          </Text>
-          <Text style={{ color: '#6B7280', fontSize: 12, fontWeight: '700' }}>
-            Swipe right to continue
-          </Text>
-        </View>
-
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 10 }}>
+      {/* Progress Rail - Visual dot navigation */}
+      <View style={[railStyles.container, { width: cardWidth }]}>
+        {/* Dot indicators with tap-to-jump */}
+        <View style={railStyles.dotsRow}>
           {tasks.map((t, i) => {
             const completed = !!completions[t.id];
             const isActive = i === index;
             return (
-              <View
+              <Pressable
                 key={t.id}
-                style={{
-                  width: isActive ? 18 : 10,
-                  height: 10,
-                  borderRadius: 999,
-                  backgroundColor: completed ? '#58CC02' : isActive ? '#1CB0F6' : 'rgba(107,114,128,0.35)',
-                  borderWidth: 2,
-                  borderColor: 'rgba(255,255,255,0.9)',
-                }}
-              />
+                onPress={() => commitIndex(i)}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel={`Go to task ${i + 1}${completed ? ', completed' : ''}`}
+              >
+                <View
+                  style={[
+                    railStyles.dot,
+                    isActive && railStyles.dotActive,
+                    completed && railStyles.dotComplete,
+                    isActive && completed && railStyles.dotActiveComplete,
+                  ]}
+                />
+                {completed && !isActive && (
+                  <Text style={railStyles.dotCheckmark}>✓</Text>
+                )}
+              </Pressable>
             );
           })}
         </View>
 
-        {/* Edge affordances */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
-          <Text style={{ color: canGoPrev ? '#111827' : '#9CA3AF', fontWeight: '800' }}>
-            {canGoPrev ? '← Previous' : ' '}
+        {/* Navigation arrows (tap alternative to swipe) */}
+        <View style={railStyles.arrowsRow}>
+          <Pressable
+            onPress={() => canGoPrev && commitIndex(index - 1)}
+            disabled={!canGoPrev}
+            style={railStyles.arrowButton}
+            hitSlop={10}
+          >
+            <Text
+              style={[
+                railStyles.arrowText,
+                !canGoPrev && railStyles.arrowTextDisabled,
+              ]}
+            >
+              ← Prev
+            </Text>
+          </Pressable>
+
+          <Text style={railStyles.positionText}>
+            {index + 1} of {total}
           </Text>
-          <Text style={{ color: canGoNext ? '#111827' : '#9CA3AF', fontWeight: '800' }}>
-            {canGoNext ? 'Next →' : ' '}
-          </Text>
+
+          <Pressable
+            onPress={() => canGoNext && commitIndex(index + 1)}
+            disabled={!canGoNext}
+            style={railStyles.arrowButton}
+            hitSlop={10}
+          >
+            <Text
+              style={[
+                railStyles.arrowText,
+                !canGoNext && railStyles.arrowTextDisabled,
+              ]}
+            >
+              Next →
+            </Text>
+          </Pressable>
         </View>
       </View>
     </View>
   );
 }
+
+const railStyles = StyleSheet.create({
+  container: {
+    marginTop: TodaySpacing[12],
+  },
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: TodaySpacing[8],
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: TodayRadii.pill,
+    backgroundColor: TodayColors.dotInactive,
+    borderWidth: 2,
+    borderColor: TodayColors.bgCard,
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: TodayColors.dotActive,
+  },
+  dotComplete: {
+    backgroundColor: TodayColors.dotComplete,
+  },
+  dotActiveComplete: {
+    backgroundColor: TodayColors.dotComplete,
+  },
+  dotCheckmark: {
+    position: 'absolute',
+    top: -2,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 8,
+    color: TodayColors.bgCard,
+    fontFamily: TodayTypography.bricolageBold,
+  },
+  arrowsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: TodaySpacing[10],
+  },
+  arrowButton: {
+    paddingVertical: TodaySpacing[4],
+    paddingHorizontal: TodaySpacing[8],
+  },
+  arrowText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
+  },
+  arrowTextDisabled: {
+    color: TodayColors.textDisabled,
+  },
+  positionText: {
+    fontSize: TodayTypography.caption.fontSize,
+    lineHeight: TodayTypography.caption.lineHeight,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textMuted,
+  },
+});
