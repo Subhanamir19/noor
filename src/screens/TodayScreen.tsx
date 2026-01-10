@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { format } from 'date-fns';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Cog6ToothIcon } from 'react-native-heroicons/outline';
+import { CheckCircleIcon } from 'react-native-heroicons/solid';
 
 import {
   QuickCaptureButton,
@@ -14,23 +15,21 @@ import {
   useQuickCaptureTooltip,
 } from '@/components/character';
 import { IconButton } from '@/components/common/IconButton';
-import { ChallengeList, CoachingModal } from '@/components/coaching';
+import { CoachingModal } from '@/components/coaching';
 import { AyahOverlay, useAyahOverlay } from '@/components/today/AyahOverlay';
 import { DailyFeedbackModal } from '@/components/today/DailyFeedbackModal';
-import { DailyTaskCardsSection } from '@/components/today/DailyTaskCardsSection';
-import { NoorAmbientZone } from '@/components/today/NoorAmbientZone';
-import { ParentingPulse } from '@/components/today/ParentingPulse';
-import { TodayColors, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
+import { TodayColors, TodayRadii, TodaySpacing, TodayShadows, TodayTypography } from '@/constants/todayTokens';
 import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/store/authStore';
 import { useCharacterStore } from '@/store/characterStore';
 import { useCoachingStore } from '@/store/coachingStore';
 import { useDailyTasksStore } from '@/store/dailyTasksStore';
+import { useJourneyStore } from '@/store/journeyStore';
 import { useMissionStore } from '@/store/missionStore';
 import type { DailyTask, DailyFeedbackRating } from '@/types/models';
 
-const BLUR_HEIGHT = 60;
 const SCREEN_GUTTER = TodaySpacing[16];
+const BACKGROUND_TOP_HEIGHT = 280; // Height of the top scene to keep visible
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Today'>,
@@ -70,6 +69,9 @@ export function TodayScreen({ navigation }: Props) {
   const declineIntervention = useCoachingStore((state) => state.declineIntervention);
   const completeChallenge = useCoachingStore((state) => state.completeChallenge);
 
+  // Journey store
+  const journeyPhotos = useJourneyStore((state) => state.photos);
+
   // Quick Capture tooltip (onboarding)
   const { showTooltip, dismissTooltip } = useQuickCaptureTooltip();
 
@@ -77,17 +79,9 @@ export function TodayScreen({ navigation }: Props) {
   const { handleAyahDismiss } = useAyahOverlay();
 
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<DailyTask | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [isDeckInteracting, setIsDeckInteracting] = useState(false);
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Scroll animation for blur effect
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const blurOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
 
   useEffect(() => {
     if (!user?.id) return;
@@ -155,7 +149,7 @@ export function TodayScreen({ navigation }: Props) {
 
   // Daily task handlers
   const handleDailyTaskPress = (task: DailyTask) => {
-    navigation.navigate('DailyTaskDetail', { taskId: task.id });
+    setSelectedTask(task);
   };
 
   const handleDailyTaskComplete = async (taskId: string, isCompleted: boolean) => {
@@ -165,11 +159,6 @@ export function TodayScreen({ navigation }: Props) {
     } else {
       await completeDailyTask(user.id, taskId);
     }
-  };
-
-  const handleDailyTaskRefresh = async () => {
-    if (!user?.id) return;
-    await refreshDailyTasks(user.id);
   };
 
   const handleSubmitFeedback = async (rating: DailyFeedbackRating) => {
@@ -192,99 +181,146 @@ export function TodayScreen({ navigation }: Props) {
     );
   }
 
+  const allTasks = [...todaysTasks.dayTasks, ...todaysTasks.niceToHaveTasks];
+  const completedCount = allTasks.filter((t) => dailyTaskCompletions[t.id]).length;
+  const goalsLeft = Math.max(0, allTasks.length - completedCount);
+
+  // Check if photo captured today
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const capturedToday = journeyPhotos.some((p) => p.photo_date === today);
+
   return (
-    <View style={{ flex: 1, backgroundColor: TodayColors.bgApp }}>
+    <View style={{ flex: 1, backgroundColor: '#58B9C5' }}>
       {/* Ayah of the Day Overlay */}
       <AyahOverlay onDismiss={handleAyahDismiss} />
 
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-        {/* Scroll blur effect overlay */}
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: BLUR_HEIGHT,
-            zIndex: 10,
-            opacity: blurOpacity,
-          }}
-          pointerEvents="none"
-        >
-          <LinearGradient colors={[TodayColors.bgApp, 'rgba(255, 243, 247, 0)']} style={{ flex: 1 }} />
-        </Animated.View>
-
-        <Animated.ScrollView
-          style={{ flex: 1 }}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
-          scrollEnabled={!isDeckInteracting}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={TodayColors.ctaSecondary}
-            />
-          }
-        >
+      <ImageBackground
+        source={require('../../assets/today.jpeg')}
+        style={{ flex: 1 }}
+        resizeMode="cover"
+      >
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           {/* Header */}
           <View style={styles.header}>
+            <View style={styles.headerSpacer} />
             <IconButton
               onPress={() => navigation.navigate('Settings')}
               accessibilityRole="button"
               accessibilityLabel="Open settings"
-              icon={<Cog6ToothIcon size={22} color={TodayColors.textSecondary} />}
-            />
-            <View style={styles.headerSpacer} />
-          </View>
-
-          {/* Noor's Ambient Zone - Immersive character window */}
-          <NoorAmbientZone completionPercentage={dailyTaskPercentage} />
-
-          {/* Main Content */}
-          <View style={styles.content}>
-            {/* Parenting Pulse - Transparent wellness indicator */}
-            {wellnessScore !== null && (
-              <View style={styles.pulseWrapper}>
-                <ParentingPulse
-                  score={wellnessScore}
-                  tasksCompleted={Object.values(dailyTaskCompletions).filter(Boolean).length}
-                  totalTasks={todaysTasks.dayTasks.length + todaysTasks.niceToHaveTasks.length}
-                  streakDays={0}
-                  onPress={() => navigation.navigate('Garden' as any)}
-                />
-              </View>
-            )}
-
-            {/* Active Challenges */}
-            {activeChallenges.length > 0 && (
-              <View style={styles.challengesWrapper}>
-                <ChallengeList
-                  challenges={activeChallenges}
-                  onCompleteChallenge={handleCompleteChallenge}
-                />
-              </View>
-            )}
-
-            {/* Daily Tasks - "Your 7 for Today" */}
-            <DailyTaskCardsSection
-              todaysTasks={todaysTasks}
-              completions={dailyTaskCompletions}
-              completionPercentage={dailyTaskPercentage}
-              onTaskPress={handleDailyTaskPress}
-              onTaskComplete={handleDailyTaskComplete}
-              onRefresh={handleDailyTaskRefresh}
-              onDeckInteractionChange={setIsDeckInteracting}
+              icon={<Cog6ToothIcon size={24} color={TodayColors.textPrimary} />}
             />
           </View>
 
-          {/* Bottom spacing */}
-          <View style={{ height: 100 }} />
-        </Animated.ScrollView>
-      </SafeAreaView>
+          <View style={{ flex: 1 }}>
+            {/* Top spacing for scene visibility */}
+            <View style={{ height: BACKGROUND_TOP_HEIGHT }} />
+
+            {/* Content Area - Pinkish section */}
+            <View style={styles.contentContainer}>
+              {/* Adventure Progress Bar */}
+              <View style={styles.adventureSection}>
+                <View style={styles.adventureBadge}>
+                  <Text style={styles.adventureBadgeIcon}>⚡</Text>
+                  <View style={styles.adventureTextContainer}>
+                    <Text style={styles.adventureTitle}>77th Adventure</Text>
+                    <View style={styles.progressBarContainer}>
+                      <View style={styles.progressBarTrack}>
+                        <View style={[styles.progressBarFill, { width: '43%' }]} />
+                      </View>
+                      <Text style={styles.progressText}>15 / 35</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Goals Left Counter */}
+              <View style={styles.goalsLeftSection}>
+                <View style={styles.goalsLeftBadge}>
+                  <Text style={styles.goalsLeftIcon}>📋</Text>
+                  <Text style={styles.goalsLeftText}>
+                    {goalsLeft} {goalsLeft === 1 ? 'goal' : 'goals'} left for today!
+                  </Text>
+                  <View style={styles.goalsBadgeCircle}>
+                    <Text style={styles.goalsBadgeText}>+</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Task List - Scrollable */}
+              <ScrollView
+                style={styles.taskScrollView}
+                contentContainerStyle={styles.taskListContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {allTasks.map((task, index) => (
+                  <TaskButton
+                    key={task.id}
+                    task={task}
+                    isCompleted={!!dailyTaskCompletions[task.id]}
+                    onPress={() => handleDailyTaskPress(task)}
+                    onToggleComplete={() => handleDailyTaskComplete(task.id, !!dailyTaskCompletions[task.id])}
+                  />
+                ))}
+
+                {/* Completion Celebration Card - Prompt to capture photo */}
+                {goalsLeft === 0 && allTasks.length > 0 && !capturedToday && (
+                  <View style={styles.completionCard}>
+                    <Text style={styles.completionEmoji}>🎉</Text>
+                    <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
+                    <Text style={styles.completionSubtitle}>
+                      You completed all tasks today!
+                    </Text>
+
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.capturePhotoButton,
+                        pressed && styles.capturePhotoButtonPressed,
+                      ]}
+                      onPress={() => navigation.navigate('Journey' as any)}
+                    >
+                      <Text style={styles.capturePhotoIcon}>📸</Text>
+                      <Text style={styles.capturePhotoText}>Capture Today's Memory</Text>
+                    </Pressable>
+
+                    <Text style={styles.completionHint}>
+                      Save this beautiful moment in your Journey
+                    </Text>
+                  </View>
+                )}
+
+                {/* Already Captured - Show Celebration Only */}
+                {goalsLeft === 0 && allTasks.length > 0 && capturedToday && (
+                  <View style={styles.completionCardSimple}>
+                    <Text style={styles.completionEmoji}>🎉</Text>
+                    <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
+                    <Text style={styles.completionSubtitle}>
+                      You've completed all tasks and captured today's memory!
+                    </Text>
+                  </View>
+                )}
+
+                {/* Bottom spacing for tab bar */}
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            </View>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
+
+      {/* Task Detail Modal */}
+      <Modal
+        visible={selectedTask !== null}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSelectedTask(null)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: TodayColors.bgApp }}>
+          <TaskDetailContent
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+          />
+        </SafeAreaView>
+      </Modal>
 
       <DailyFeedbackModal
         visible={showFeedbackModal}
@@ -309,10 +345,155 @@ export function TodayScreen({ navigation }: Props) {
   );
 }
 
+// TaskButton Component - Duolingo-style 3D chunky button
+interface TaskButtonProps {
+  task: DailyTask;
+  isCompleted: boolean;
+  onPress: () => void;
+  onToggleComplete: () => void;
+}
+
+function TaskButton({ task, isCompleted, onPress, onToggleComplete }: TaskButtonProps) {
+  const shadowHeight = 6;
+
+  return (
+    <Pressable onPress={onPress} style={styles.taskButtonWrapper}>
+      {({ pressed }) => {
+        const translateY = pressed ? shadowHeight : 0;
+        const currentShadowHeight = pressed ? 0 : shadowHeight;
+
+        return (
+          <View style={{ width: '100%' }}>
+            {/* Shadow layer - EXACT Duolingo style */}
+            <View
+              style={[
+                {
+                  position: 'absolute',
+                  top: shadowHeight,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: '#9CA3AF',
+                  borderRadius: 20,
+                },
+                isCompleted && { backgroundColor: '#4ADE80' },
+              ]}
+            />
+
+            {/* Main button surface */}
+            <View
+              style={[
+                styles.taskButtonContent,
+                {
+                  transform: [{ translateY }],
+                  marginBottom: currentShadowHeight,
+                },
+                isCompleted && styles.taskButtonContentCompleted,
+              ]}
+            >
+              {/* Icon */}
+              <View style={[styles.taskIconContainer, isCompleted && styles.taskIconContainerCompleted]}>
+                <Text style={styles.taskIcon}>{task.icon || '✨'}</Text>
+              </View>
+
+              {/* Task Text */}
+              <Text
+                style={[styles.taskText, isCompleted && styles.taskTextCompleted]}
+                numberOfLines={2}
+              >
+                {task.title}
+              </Text>
+
+              {/* Checkmark - Tappable */}
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onToggleComplete();
+                }}
+                hitSlop={12}
+                style={styles.checkmarkPressable}
+              >
+                {isCompleted ? (
+                  <View style={styles.checkmarkCircleCompleted}>
+                    <CheckCircleIcon size={30} color={TodayColors.success} />
+                  </View>
+                ) : (
+                  <View style={styles.checkmarkCircleEmpty} />
+                )}
+              </Pressable>
+            </View>
+          </View>
+        );
+      }}
+    </Pressable>
+  );
+}
+
+// TaskDetailContent Component
+interface TaskDetailContentProps {
+  task: DailyTask | null;
+  onClose: () => void;
+}
+
+function TaskDetailContent({ task, onClose }: TaskDetailContentProps) {
+  if (!task) return null;
+
+  return (
+    <View style={{ flex: 1 }}>
+      {/* Header */}
+      <View style={styles.detailHeader}>
+        <Text style={styles.detailTitle}>Task Details</Text>
+        <Pressable onPress={onClose} hitSlop={10}>
+          <Text style={styles.detailCloseButton}>✕</Text>
+        </Pressable>
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.detailContent} contentContainerStyle={styles.detailContentContainer}>
+        <View style={styles.detailIconContainer}>
+          <Text style={styles.detailIcon}>{task.icon || '✨'}</Text>
+        </View>
+
+        <Text style={styles.detailTaskTitle}>{task.title}</Text>
+
+        {task.description && (
+          <View style={styles.detailSection}>
+            <Text style={styles.detailSectionTitle}>Description</Text>
+            <Text style={styles.detailSectionText}>{task.description}</Text>
+          </View>
+        )}
+
+        <View style={styles.detailSection}>
+          <Text style={styles.detailSectionTitle}>Category</Text>
+          <Text style={styles.detailSectionText}>{task.category}</Text>
+        </View>
+
+        <View style={styles.detailSection}>
+          <Text style={styles.detailSectionTitle}>Age Group</Text>
+          <Text style={styles.detailSectionText}>{task.age_appropriate}</Text>
+        </View>
+
+        {task.tags && task.tags.length > 0 && (
+          <View style={styles.detailSection}>
+            <Text style={styles.detailSectionTitle}>Tags</Text>
+            <View style={styles.tagsContainer}>
+              {task.tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: SCREEN_GUTTER,
-    paddingTop: TodaySpacing[12],
+    paddingTop: TodaySpacing[8],
     paddingBottom: TodaySpacing[8],
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -321,13 +502,308 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 44,
   },
-  content: {
+  contentContainer: {
+    flex: 1,
+    backgroundColor: '#FFF5F7',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: TodaySpacing[16],
     paddingHorizontal: SCREEN_GUTTER,
   },
-  pulseWrapper: {
+  adventureSection: {
+    marginBottom: TodaySpacing[12],
+  },
+  adventureBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: TodayRadii.xl,
+    padding: TodaySpacing[12],
+    ...TodayShadows.softFloat,
+  },
+  adventureBadgeIcon: {
+    fontSize: 32,
+    marginRight: TodaySpacing[12],
+  },
+  adventureTextContainer: {
+    flex: 1,
+  },
+  adventureTitle: {
+    fontSize: TodayTypography.h3.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
+    marginBottom: TodaySpacing[6],
+  },
+  progressBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: TodaySpacing[8],
+  },
+  progressBarTrack: {
+    flex: 1,
+    height: 12,
+    backgroundColor: '#E5E7EB',
+    borderRadius: TodayRadii.pill,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#FCD34D',
+    borderRadius: TodayRadii.pill,
+  },
+  progressText: {
+    fontSize: TodayTypography.body.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textSecondary,
+  },
+  goalsLeftSection: {
     marginBottom: TodaySpacing[16],
   },
-  challengesWrapper: {
+  goalsLeftBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: TodayRadii.xl,
+    padding: TodaySpacing[12],
+    ...TodayShadows.softFloat,
+  },
+  goalsLeftIcon: {
+    fontSize: 24,
+    marginRight: TodaySpacing[10],
+  },
+  goalsLeftText: {
+    flex: 1,
+    fontSize: TodayTypography.bodyLarge.fontSize,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.textPrimary,
+  },
+  goalsBadgeCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: TodayColors.infoBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalsBadgeText: {
+    fontSize: 18,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.ctaSecondary,
+  },
+  taskScrollView: {
+    flex: 1,
+  },
+  taskListContent: {
+    paddingBottom: TodaySpacing[20],
+  },
+  // Duolingo-style 3D Button Wrapper
+  taskButtonWrapper: {
+    marginBottom: 18,
+  },
+  taskButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderWidth: 3,
+    borderColor: '#E5E7EB',
+  },
+  taskButtonContentCompleted: {
+    opacity: 0.85,
+  },
+  taskIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  taskIconContainerCompleted: {
+    backgroundColor: '#D1FAE5',
+  },
+  taskIcon: {
+    fontSize: 26,
+  },
+  taskText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 21,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: '#1F2937',
+    marginRight: 12,
+  },
+  taskTextCompleted: {
+    textDecorationLine: 'line-through',
+    color: '#9CA3AF',
+  },
+  checkmarkPressable: {
+    padding: 2,
+  },
+  checkmarkCircleCompleted: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmarkCircleEmpty: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 3,
+    borderColor: '#D1D5DB',
+  },
+  // Completion Card Styles
+  completionCard: {
+    marginTop: TodaySpacing[20],
+    backgroundColor: '#FFFFFF',
+    borderRadius: TodayRadii.xl,
+    padding: TodaySpacing[24],
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: TodayColors.success,
+    ...TodayShadows.softFloat,
+  },
+  completionEmoji: {
+    fontSize: 48,
+    marginBottom: TodaySpacing[12],
+  },
+  completionTitle: {
+    fontSize: TodayTypography.h2.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
+    marginBottom: TodaySpacing[6],
+    textAlign: 'center',
+  },
+  completionSubtitle: {
+    fontSize: TodayTypography.bodyLarge.fontSize,
+    fontFamily: TodayTypography.poppinsMedium,
+    color: TodayColors.textSecondary,
+    marginBottom: TodaySpacing[20],
+    textAlign: 'center',
+  },
+  capturePhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: TodayColors.ctaPrimary,
+    paddingVertical: TodaySpacing[14],
+    paddingHorizontal: TodaySpacing[24],
+    borderRadius: TodayRadii.lg,
+    marginBottom: TodaySpacing[12],
+    ...TodayShadows.softFloat,
+  },
+  capturePhotoButtonPressed: {
+    backgroundColor: TodayColors.ctaPrimaryPressed,
+    transform: [{ scale: 0.98 }],
+  },
+  capturePhotoIcon: {
+    fontSize: 24,
+    marginRight: TodaySpacing[10],
+  },
+  capturePhotoText: {
+    fontSize: TodayTypography.bodyLarge.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textInverse,
+  },
+  completionHint: {
+    fontSize: TodayTypography.caption.fontSize,
+    fontFamily: TodayTypography.poppinsMedium,
+    color: TodayColors.textMuted,
+    textAlign: 'center',
+  },
+  completionCardSimple: {
+    marginTop: TodaySpacing[20],
+    backgroundColor: '#FFFFFF',
+    borderRadius: TodayRadii.xl,
+    padding: TodaySpacing[24],
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: TodayColors.success,
+    ...TodayShadows.softFloat,
+  },
+  // Detail Modal Styles
+  detailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SCREEN_GUTTER,
+    paddingVertical: TodaySpacing[16],
+    borderBottomWidth: 1,
+    borderBottomColor: TodayColors.strokeSubtle,
+  },
+  detailTitle: {
+    fontSize: TodayTypography.h2.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
+  },
+  detailCloseButton: {
+    fontSize: 28,
+    color: TodayColors.textMuted,
+    fontWeight: '300',
+  },
+  detailContent: {
+    flex: 1,
+  },
+  detailContentContainer: {
+    padding: SCREEN_GUTTER,
+  },
+  detailIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FEF3C7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
     marginBottom: TodaySpacing[16],
+  },
+  detailIcon: {
+    fontSize: 40,
+  },
+  detailTaskTitle: {
+    fontSize: TodayTypography.h1.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
+    textAlign: 'center',
+    marginBottom: TodaySpacing[24],
+  },
+  detailSection: {
+    marginBottom: TodaySpacing[20],
+  },
+  detailSectionTitle: {
+    fontSize: TodayTypography.h3.fontSize,
+    fontFamily: TodayTypography.bricolageBold,
+    color: TodayColors.textPrimary,
+    marginBottom: TodaySpacing[8],
+  },
+  detailSectionText: {
+    fontSize: TodayTypography.bodyLarge.fontSize,
+    lineHeight: TodayTypography.bodyLarge.lineHeight,
+    fontFamily: TodayTypography.poppinsMedium,
+    color: TodayColors.textSecondary,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: TodaySpacing[8],
+  },
+  tag: {
+    backgroundColor: TodayColors.infoBg,
+    borderRadius: TodayRadii.sm,
+    paddingVertical: TodaySpacing[6],
+    paddingHorizontal: TodaySpacing[12],
+    borderWidth: 1,
+    borderColor: TodayColors.infoBorder,
+  },
+  tagText: {
+    fontSize: TodayTypography.caption.fontSize,
+    fontFamily: TodayTypography.poppinsSemiBold,
+    color: TodayColors.ctaSecondary,
   },
 });
