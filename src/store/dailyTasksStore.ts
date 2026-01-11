@@ -71,7 +71,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
       todayCompletions: {},
       completionPercentage: 0,
       preferredDayTaskCount: 3,
-      preferredNiceToHaveCount: 4,
+      preferredNiceToHaveCount: 2,
       childAge: 'all',
       recentFeedback: [],
       isLoading: false,
@@ -102,7 +102,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               existingSelection.bonus_task_id,
             ].filter(Boolean);
 
-            const niceToHaveIds: string[] = (existingSelection.optional_task_ids || []).slice(0, 4);
+            const niceToHaveIds: string[] = (existingSelection.optional_task_ids || []).slice(0, 2);
 
             const dayTasks = dayTaskIds
               .map((id: string) => getTaskById(id))
@@ -112,14 +112,14 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               .map((id: string) => getTaskById(id))
               .filter((t: DailyTask | undefined): t is DailyTask => t !== undefined);
 
-            // If older data is incomplete/out-of-date, deterministically fill to 3 + 4 and persist.
-            const needsFill = dayTasks.length < 3 || niceToHaveTasks.length < 4;
+            // If older data is incomplete/out-of-date, deterministically fill to 3 + 2 and persist.
+            const needsFill = dayTasks.length < 3 || niceToHaveTasks.length < 2;
             if (needsFill) {
               const recentCompletedIds = await getRecentlyCompletedTaskIds(userId);
               const selection = selectTasksForToday(
                 state.childAge,
                 3,
-                4,
+                2,
                 recentCompletedIds,
                 `${userId}|${today}`
               );
@@ -135,7 +135,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               for (const t of [...niceToHaveTasks, ...selection.niceToHaveTasks]) {
                 if (!t || filledNiceToHave.some((x) => x.id === t.id)) continue;
                 filledNiceToHave.push(t);
-                if (filledNiceToHave.length === 4) break;
+                if (filledNiceToHave.length === 2) break;
               }
 
               await supabase.from('daily_task_selections').upsert(
@@ -348,7 +348,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
           set({
             recentFeedback: updatedFeedback,
             preferredDayTaskCount: 3,
-            preferredNiceToHaveCount: 4,
+            preferredNiceToHaveCount: 2,
           });
 
           // Save preference to database
@@ -422,7 +422,7 @@ export const useDailyTasksStore = create<DailyTasksState>()(
           todayCompletions: {},
           completionPercentage: 0,
           preferredDayTaskCount: 3,
-          preferredNiceToHaveCount: 4,
+          preferredNiceToHaveCount: 2,
           recentFeedback: [],
           isLoading: false,
           error: null,

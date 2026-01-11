@@ -74,7 +74,7 @@ export function DailyTaskCardsSection({
 
   const deckTasks = useMemo(() => {
     const must = dayTasks.slice(0, 3);
-    const nice = niceToHaveTasks.slice(0, 4);
+    const nice = niceToHaveTasks.slice(0, 2);
     return [...must, ...nice];
   }, [dayTasks, niceToHaveTasks]);
 

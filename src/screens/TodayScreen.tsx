@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import type { CompositeScreenProps } from '@react-navigation/native';
@@ -38,6 +38,9 @@ type Props = CompositeScreenProps<
 
 export function TodayScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
+
+  // Scroll animation for header reveal effect
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const loadTodaysMission = useMissionStore((state) => state.loadTodaysMission);
 
@@ -189,123 +192,140 @@ export function TodayScreen({ navigation }: Props) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const capturedToday = journeyPhotos.some((p) => p.photo_date === today);
 
+  // Animation: header image fades out as user scrolls down
+  const SCROLL_THRESHOLD = 200;
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, SCROLL_THRESHOLD],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#58B9C5' }}>
+    <View style={{ flex: 1, backgroundColor: '#FFE4EF' }}>
       {/* Ayah of the Day Overlay */}
       <AyahOverlay onDismiss={handleAyahDismiss} />
 
-      <ImageBackground
-        source={require('../../assets/today.jpeg')}
+      {/* Fixed Background Image - fades as user scrolls */}
+      <Animated.View style={[styles.backgroundImageContainer, { opacity: headerOpacity }]}>
+        <ImageBackground
+          source={require('../../assets/today.jpeg')}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+        />
+      </Animated.View>
+
+      {/* Settings button - fixed at top */}
+      <SafeAreaView style={styles.headerContainer} edges={['top']}>
+        <View style={styles.header}>
+          <View style={styles.headerSpacer} />
+          <IconButton
+            onPress={() => navigation.navigate('Settings')}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
+            icon={<Cog6ToothIcon size={24} color={TodayColors.textPrimary} />}
+          />
+        </View>
+      </SafeAreaView>
+
+      {/* Scrollable Content */}
+      <Animated.ScrollView
         style={{ flex: 1 }}
-        resizeMode="cover"
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
       >
-        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerSpacer} />
-            <IconButton
-              onPress={() => navigation.navigate('Settings')}
-              accessibilityRole="button"
-              accessibilityLabel="Open settings"
-              icon={<Cog6ToothIcon size={24} color={TodayColors.textPrimary} />}
-            />
-          </View>
+        {/* Spacer for header scene visibility */}
+        <View style={{ height: BACKGROUND_TOP_HEIGHT }} />
 
-          <View style={{ flex: 1 }}>
-            {/* Top spacing for scene visibility */}
-            <View style={{ height: BACKGROUND_TOP_HEIGHT }} />
-
-            {/* Content Area - Pinkish section */}
-            <View style={styles.contentContainer}>
-              {/* Adventure Progress Bar */}
-              <View style={styles.adventureSection}>
-                <View style={styles.adventureBadge}>
-                  <Text style={styles.adventureBadgeIcon}>⚡</Text>
-                  <View style={styles.adventureTextContainer}>
-                    <Text style={styles.adventureTitle}>77th Adventure</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={styles.progressBarTrack}>
-                        <View style={[styles.progressBarFill, { width: '43%' }]} />
-                      </View>
-                      <Text style={styles.progressText}>15 / 35</Text>
-                    </View>
+        {/* Content Area - Pinkish section with rounded top corners */}
+        <View style={styles.contentContainer}>
+          {/* Adventure Progress Bar */}
+          <View style={styles.adventureSection}>
+            <View style={styles.adventureBadge}>
+              <Text style={styles.adventureBadgeIcon}>⚡</Text>
+              <View style={styles.adventureTextContainer}>
+                <Text style={styles.adventureTitle}>77th Adventure</Text>
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.progressBarTrack}>
+                    <View style={[styles.progressBarFill, { width: '43%' }]} />
                   </View>
+                  <Text style={styles.progressText}>15 / 35</Text>
                 </View>
               </View>
-
-              {/* Goals Left Counter */}
-              <View style={styles.goalsLeftSection}>
-                <View style={styles.goalsLeftBadge}>
-                  <Text style={styles.goalsLeftIcon}>📋</Text>
-                  <Text style={styles.goalsLeftText}>
-                    {goalsLeft} {goalsLeft === 1 ? 'goal' : 'goals'} left for today!
-                  </Text>
-                  <View style={styles.goalsBadgeCircle}>
-                    <Text style={styles.goalsBadgeText}>+</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Task List - Scrollable */}
-              <ScrollView
-                style={styles.taskScrollView}
-                contentContainerStyle={styles.taskListContent}
-                showsVerticalScrollIndicator={false}
-              >
-                {allTasks.map((task, index) => (
-                  <TaskButton
-                    key={task.id}
-                    task={task}
-                    isCompleted={!!dailyTaskCompletions[task.id]}
-                    onPress={() => handleDailyTaskPress(task)}
-                    onToggleComplete={() => handleDailyTaskComplete(task.id, !!dailyTaskCompletions[task.id])}
-                  />
-                ))}
-
-                {/* Completion Celebration Card - Prompt to capture photo */}
-                {goalsLeft === 0 && allTasks.length > 0 && !capturedToday && (
-                  <View style={styles.completionCard}>
-                    <Text style={styles.completionEmoji}>🎉</Text>
-                    <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
-                    <Text style={styles.completionSubtitle}>
-                      You completed all tasks today!
-                    </Text>
-
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.capturePhotoButton,
-                        pressed && styles.capturePhotoButtonPressed,
-                      ]}
-                      onPress={() => navigation.navigate('Journey' as any)}
-                    >
-                      <Text style={styles.capturePhotoIcon}>📸</Text>
-                      <Text style={styles.capturePhotoText}>Capture Today's Memory</Text>
-                    </Pressable>
-
-                    <Text style={styles.completionHint}>
-                      Save this beautiful moment in your Journey
-                    </Text>
-                  </View>
-                )}
-
-                {/* Already Captured - Show Celebration Only */}
-                {goalsLeft === 0 && allTasks.length > 0 && capturedToday && (
-                  <View style={styles.completionCardSimple}>
-                    <Text style={styles.completionEmoji}>🎉</Text>
-                    <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
-                    <Text style={styles.completionSubtitle}>
-                      You've completed all tasks and captured today's memory!
-                    </Text>
-                  </View>
-                )}
-
-                {/* Bottom spacing for tab bar */}
-                <View style={{ height: 20 }} />
-              </ScrollView>
             </View>
           </View>
-        </SafeAreaView>
-      </ImageBackground>
+
+          {/* Goals Left Counter */}
+          <View style={styles.goalsLeftSection}>
+            <View style={styles.goalsLeftBadge}>
+              <Text style={styles.goalsLeftIcon}>📋</Text>
+              <Text style={styles.goalsLeftText}>
+                {goalsLeft} {goalsLeft === 1 ? 'goal' : 'goals'} left for today!
+              </Text>
+              <View style={styles.goalsBadgeCircle}>
+                <Text style={styles.goalsBadgeText}>+</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Task List */}
+          <View style={styles.taskListContainer}>
+            {allTasks.map((task, index) => (
+              <TaskButton
+                key={task.id}
+                task={task}
+                isCompleted={!!dailyTaskCompletions[task.id]}
+                onPress={() => handleDailyTaskPress(task)}
+                onToggleComplete={() => handleDailyTaskComplete(task.id, !!dailyTaskCompletions[task.id])}
+              />
+            ))}
+
+            {/* Completion Celebration Card - Prompt to capture photo */}
+            {goalsLeft === 0 && allTasks.length > 0 && !capturedToday && (
+              <View style={styles.completionCard}>
+                <Text style={styles.completionEmoji}>🎉</Text>
+                <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
+                <Text style={styles.completionSubtitle}>
+                  You completed all tasks today!
+                </Text>
+
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.capturePhotoButton,
+                    pressed && styles.capturePhotoButtonPressed,
+                  ]}
+                  onPress={() => navigation.navigate('Journey' as any)}
+                >
+                  <Text style={styles.capturePhotoIcon}>📸</Text>
+                  <Text style={styles.capturePhotoText}>Capture Today's Memory</Text>
+                </Pressable>
+
+                <Text style={styles.completionHint}>
+                  Save this beautiful moment in your Journey
+                </Text>
+              </View>
+            )}
+
+            {/* Already Captured - Show Celebration Only */}
+            {goalsLeft === 0 && allTasks.length > 0 && capturedToday && (
+              <View style={styles.completionCardSimple}>
+                <Text style={styles.completionEmoji}>🎉</Text>
+                <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
+                <Text style={styles.completionSubtitle}>
+                  You've completed all tasks and captured today's memory!
+                </Text>
+              </View>
+            )}
+
+            {/* Bottom spacing for tab bar */}
+            <View style={{ height: 100 }} />
+          </View>
+        </View>
+      </Animated.ScrollView>
 
       {/* Task Detail Modal */}
       <Modal
@@ -491,6 +511,24 @@ function TaskDetailContent({ task, onClose }: TaskDetailContentProps) {
 }
 
 const styles = StyleSheet.create({
+  backgroundImageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: BACKGROUND_TOP_HEIGHT + 100, // Extend slightly below the visible area
+    zIndex: 0,
+  },
+  backgroundImage: {
+    flex: 1,
+  },
+  headerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   header: {
     paddingHorizontal: SCREEN_GUTTER,
     paddingTop: TodaySpacing[8],
@@ -502,13 +540,20 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 44,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   contentContainer: {
     flex: 1,
-    backgroundColor: '#FFF5F7',
+    minHeight: 800, // Ensure content extends to fill screen
+    backgroundColor: '#FFE4EF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: TodaySpacing[16],
     paddingHorizontal: SCREEN_GUTTER,
+  },
+  taskListContainer: {
+    paddingBottom: TodaySpacing[20],
   },
   adventureSection: {
     marginBottom: TodaySpacing[12],
@@ -589,12 +634,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: TodayTypography.bricolageBold,
     color: TodayColors.ctaSecondary,
-  },
-  taskScrollView: {
-    flex: 1,
-  },
-  taskListContent: {
-    paddingBottom: TodaySpacing[20],
   },
   // Duolingo-style 3D Button Wrapper
   taskButtonWrapper: {

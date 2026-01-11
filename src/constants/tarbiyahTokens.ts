@@ -353,6 +353,46 @@ export const rgba = (hex: string, alpha: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// CHAT MODE TOKENS
+// ═══════════════════════════════════════════════════════════════
+
+export const TarbiyahChatTokens = {
+  bubble: {
+    minHeight: 180,
+    maxHeightRatio: 0.55, // % of screen height
+    backgroundColor: '#FAFAF8',
+    borderColor: '#E5E2DD',
+    borderWidth: 2,
+    borderRadius: 20,
+    padding: {
+      short: 24,  // For content <300 chars
+      medium: 20, // For content 300-500 chars
+      long: 16,   // For content >500 chars
+    },
+  },
+  character: {
+    width: 120,
+    height: 120,
+    bottomOffset: 100, // From bottom of screen
+    rightOffset: 16,
+  },
+  text: {
+    short: { fontSize: 17, lineHeight: 26 },
+    medium: { fontSize: 15, lineHeight: 24 },
+    long: { fontSize: 14, lineHeight: 22 },
+    color: '#2D2A26', // Dark text on light bubble
+    arabicColor: '#B8860B', // Darker gold for readability on light bg
+  },
+  animation: {
+    typewriterSpeed: 50,     // Characters per second
+    textFadeOut: 200,        // ms
+    stepTransition: 300,     // ms
+    breathingDuration: 3000, // ms for one breath cycle
+    pulseDelay: 200,         // ms after animation complete
+  },
+} as const;
+
 // Pre-computed RGBA values for common use cases
 export const TarbiyahRgba = {
   // Borders

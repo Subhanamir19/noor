@@ -1,6 +1,9 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type OnboardingStackParamList = {
+  ChatIntro: undefined;
+  DailyTasksIntro: undefined;
+  TarbiyahIntro: undefined;
   Welcome: undefined;
   ChildInfo: undefined;
   StruggleSelector: undefined;

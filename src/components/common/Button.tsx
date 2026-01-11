@@ -41,6 +41,11 @@ const VARIANTS = {
     shadow: '#B86EE0',
     text: '#FFFFFF',
   },
+  pink: {
+    bg: '#F9A8D4',
+    shadow: '#EC4899',
+    text: '#FFFFFF',
+  },
   outline: {
     bg: '#FFFFFF',
     shadow: '#E5E5E5',

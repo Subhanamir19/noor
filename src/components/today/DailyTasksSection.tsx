@@ -145,7 +145,7 @@ function TaskCard({
                   style={{ fontSize: 16 }}
                   numberOfLines={1}
                 >
-                  {task.shortTitle || task.title}
+                  {task.title}
                 </Text>
               </View>
 

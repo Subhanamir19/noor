@@ -27,6 +27,9 @@ import { TarbiyahScreen } from '@/screens/TarbiyahScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
 import { TraitPracticeListScreen } from '@/screens/TraitPracticeListScreen';
 import {
+  ChatIntroScreen,
+  DailyTasksIntroScreen,
+  TarbiyahIntroScreen,
   ChildInfoScreen,
   StruggleSelectorScreen,
   WelcomeScreen,
@@ -100,6 +103,9 @@ function OnboardingNavigator() {
           animation: 'slide_from_right',
         }}
       >
+        <OnboardingStack.Screen name="ChatIntro" component={ChatIntroScreen} />
+        <OnboardingStack.Screen name="DailyTasksIntro" component={DailyTasksIntroScreen} />
+        <OnboardingStack.Screen name="TarbiyahIntro" component={TarbiyahIntroScreen} />
         <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
         <OnboardingStack.Screen name="ChildInfo" component={ChildInfoScreen} />
         <OnboardingStack.Screen

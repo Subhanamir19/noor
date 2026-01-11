@@ -63,7 +63,7 @@ function DeckCard({
   onToggleComplete: () => void;
 }) {
   const theme = getDailyTaskTheme(task);
-  const title = task.shortTitle || task.title;
+  const title = task.title; // Always show full title
   const isMustDo = label === 'MUST-DO';
 
   return (

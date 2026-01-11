@@ -37,17 +37,41 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const saveToDatabase = async () => {
     if (!user) throw new Error('User not authenticated');
 
-    // Save to onboarding_data table
-    const { error: onboardingError } = await supabase
+    // Check if user already has onboarding data
+    const { data: existing } = await supabase
       .from('onboarding_data')
-      .upsert({
-        user_id: user.id,
-        child_name: onboardingData.childName,
-        child_age: onboardingData.childAge,
-        child_gender: onboardingData.childGender,
-        primary_struggle: onboardingData.primaryStruggle,
-        updated_at: new Date().toISOString(),
-      });
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    let onboardingError;
+
+    if (existing?.id) {
+      // Update existing record
+      const { error } = await supabase
+        .from('onboarding_data')
+        .update({
+          child_name: onboardingData.childName,
+          child_age: onboardingData.childAge,
+          child_gender: onboardingData.childGender,
+          primary_struggle: onboardingData.primaryStruggle,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id);
+      onboardingError = error;
+    } else {
+      // Insert new record
+      const { error } = await supabase
+        .from('onboarding_data')
+        .insert({
+          user_id: user.id,
+          child_name: onboardingData.childName,
+          child_age: onboardingData.childAge,
+          child_gender: onboardingData.childGender,
+          primary_struggle: onboardingData.primaryStruggle,
+        });
+      onboardingError = error;
+    }
 
     if (onboardingError) throw onboardingError;
 

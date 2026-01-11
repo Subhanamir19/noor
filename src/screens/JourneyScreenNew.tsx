@@ -1,170 +1,120 @@
 /**
- * JourneyScreen
+ * JourneyScreenNew
  *
- * Today-aligned Journey UI with a Duolingo-style path.
+ * Main container for the new Duolingo-inspired Journey Screen.
+ * Features:
+ * - Vertical scrolling S-curve path with 3D chunky day badges
+ * - Floating streak counter
+ * - Photo view modal for completed days
+ * - Unlock prompt for additional days
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { CompositeScreenProps } from '@react-navigation/native';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as ImagePicker from 'expo-image-picker';
-import { Cog6ToothIcon } from 'react-native-heroicons/outline';
+import { format } from 'date-fns';
 
-import { IconButton } from '@/components/common/IconButton';
-import { JourneyHeader, JourneyPath, PhotoModal } from '@/components/journey/path';
-import { TodayColors, TodaySpacing, TodayTypography } from '@/constants/todayTokens';
-import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
+import { JourneyPathV2 } from '@/components/journey/v2/JourneyPathV2';
+import { StreakCard } from '@/components/journey/v2/StreakCard';
+import { PhotoViewModal } from '@/components/journey/v2/PhotoViewModal';
+import { EmptyState } from '@/components/journey/v2/EmptyState';
 import { useAuthStore } from '@/store/authStore';
 import { useJourneyStore } from '@/store/journeyStore';
 import type { JourneyDay } from '@/types/journey';
-import { successHaptic, warningHaptic } from '@/utils/haptics';
+import { NewJourneyColors } from '@/constants/journeyTokensV2';
 
-type Props = CompositeScreenProps<
-  BottomTabScreenProps<MainTabParamList, 'Journey'>,
-  NativeStackScreenProps<RootStackParamList>
->;
-
-export function JourneyScreen({ navigation }: Props) {
+export function JourneyScreenNew() {
   const user = useAuthStore((state) => state.user);
-
   const pathDays = useJourneyStore((state) => state.pathDays);
   const stats = useJourneyStore((state) => state.stats);
   const loadJourney = useJourneyStore((state) => state.loadJourney);
-  const addPhoto = useJourneyStore((state) => state.addPhoto);
+  const getPhotoForDay = useJourneyStore((state) => state.getPhotoForDay);
 
   const [selectedDay, setSelectedDay] = useState<JourneyDay | null>(null);
-  const [isPhotoModalVisible, setPhotoModalVisible] = useState(false);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
 
+  // Load journey on mount
   useEffect(() => {
-    if (user?.id) loadJourney(user.id);
-  }, [loadJourney, user?.id]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
-      }
-    };
-  }, []);
-
-  const openPhotoModal = useCallback((day: JourneyDay) => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
+    if (user?.id) {
+      loadJourney(user.id);
     }
-    setSelectedDay(day);
-    setPhotoModalVisible(true);
-  }, []);
+  }, [user?.id, loadJourney]);
 
-  const handleCapture = useCallback(async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please allow access to your photos to capture moments.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled || !result.assets?.[0]?.uri) return;
-
-      if (user?.id) {
-        await addPhoto(user.id, result.assets[0].uri);
-        successHaptic();
-        Alert.alert('Moment Captured', "Your journey continues. You're doing amazing!", [
-          { text: 'Beautiful' },
-        ]);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to capture moment';
-      Alert.alert('Oops!', message);
-    }
-  }, [addPhoto, user?.id]);
-
+  // Handle day badge tap
   const handleDayPress = useCallback(
     (day: JourneyDay) => {
-      if (day.status === 'logged' || (day.status === 'today' && day.photoUri)) {
-        openPhotoModal(day);
-        return;
-      }
-
-      if (day.status === 'missed') {
-        warningHaptic();
-        Alert.alert('No memory captured', `No photo was captured on Day ${day.dayNumber}.`, [
-          { text: 'OK' },
-        ]);
-        return;
-      }
-
-      if (day.status === 'today') {
-        handleCapture();
+      // Only open modal if day has a photo
+      if (day.photoUri) {
+        setSelectedDay(day);
+        setShowPhotoModal(true);
       }
     },
-    [handleCapture, openPhotoModal]
+    []
   );
 
   const handleCloseModal = useCallback(() => {
-    setPhotoModalVisible(false);
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-    closeTimeoutRef.current = setTimeout(() => setSelectedDay(null), 240);
+    setShowPhotoModal(false);
+    setSelectedDay(null);
   }, []);
 
-  const todayDay = pathDays.find((d) => d.status === 'today');
-  const primaryActionLabel = todayDay?.photoUri ? 'View today' : "Capture today's moment";
+  // Calculate last 7 days for streak card
+  const lastWeekDays = useMemo(() => {
+    const today = new Date();
+    const last7Days: boolean[] = [];
 
-  const handlePrimaryAction = useCallback(() => {
-    if (!todayDay) return;
-    if (todayDay.photoUri) {
-      openPhotoModal(todayDay);
-      return;
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+
+      const dayHasPhoto = pathDays.some(
+        (day) => day.date === dateStr && day.status === 'logged'
+      );
+      last7Days.push(dayHasPhoto);
     }
-    handleCapture();
-  }, [handleCapture, openPhotoModal, todayDay]);
+
+    return last7Days;
+  }, [pathDays]);
+
+  // Show first 10 days
+  const visibleDays = pathDays.slice(0, 10);
+  const hasMore = pathDays.length > 10;
+  const hasPhotos = pathDays.some((day) => day.status === 'logged');
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.appBar}>
-        <Text style={styles.title}>Journey</Text>
-        <IconButton
-          icon={<Cog6ToothIcon size={22} color={TodayColors.textSecondary} />}
-          variant="outline"
-          onPress={() => navigation.navigate('Settings')}
-          accessibilityLabel="Open settings"
-        />
-      </View>
+      {!hasPhotos ? (
+        // Empty state for first-time users
+        <EmptyState />
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Enhanced Streak Card */}
+          <StreakCard
+            currentStreak={stats.currentStreak}
+            longestStreak={stats.longestStreak}
+            weekDays={lastWeekDays}
+          />
 
-      <View style={styles.headerContainer}>
-        <JourneyHeader
-          streak={stats.currentStreak}
-          connectionLevel={stats.connectionDepthLevel}
-          connectionPoints={stats.connectionDepthPoints}
-          todayDayNumber={todayDay?.dayNumber}
-          todayHasPhoto={!!todayDay?.photoUri}
-          primaryActionLabel={primaryActionLabel}
-          onPrimaryAction={handlePrimaryAction}
-        />
-      </View>
+          {/* Scrollable Path */}
+          <JourneyPathV2
+            days={visibleDays}
+            onDayPress={handleDayPress}
+            showUnlockPrompt={hasMore}
+          />
+        </ScrollView>
+      )}
 
-      <JourneyPath days={pathDays} onDayPress={handleDayPress} />
-
-      <PhotoModal visible={isPhotoModalVisible} day={selectedDay} onClose={handleCloseModal} />
+      {/* Photo Modal */}
+      <PhotoViewModal
+        visible={showPhotoModal}
+        day={selectedDay}
+        photo={selectedDay ? getPhotoForDay(selectedDay.dayNumber) : undefined}
+        onClose={handleCloseModal}
+      />
     </SafeAreaView>
   );
 }
@@ -172,24 +122,16 @@ export function JourneyScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: TodayColors.bgApp,
+    backgroundColor: NewJourneyColors.background,
   },
-  appBar: {
-    paddingHorizontal: TodaySpacing[16],
-    paddingTop: TodaySpacing[12],
-    paddingBottom: TodaySpacing[8],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  scrollView: {
+    flex: 1,
   },
-  title: {
-    fontSize: 28,
-    lineHeight: 34,
-    color: TodayColors.textPrimary,
-    fontFamily: TodayTypography.bricolageBold,
-  },
-  headerContainer: {
-    paddingHorizontal: TodaySpacing[16],
-    paddingBottom: TodaySpacing[16],
+  scrollContent: {
+    paddingTop: 16,
+    paddingBottom: 32,
   },
 });
+
+// Export with both names for compatibility
+export { JourneyScreenNew as JourneyScreen };

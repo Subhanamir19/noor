@@ -44,14 +44,39 @@ export async function saveOnboardingData(
     primaryStruggle: string;
   }
 ): Promise<boolean> {
-  const { error } = await supabase.from('onboarding_data').upsert({
-    user_id: userId,
-    child_name: data.childName,
-    child_age: data.childAge,
-    child_gender: data.childGender,
-    primary_struggle: data.primaryStruggle,
-    updated_at: new Date().toISOString(),
-  });
+  // Check if user already has onboarding data
+  const { data: existing } = await supabase
+    .from('onboarding_data')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
+
+  let error;
+
+  if (existing?.id) {
+    // Update existing record
+    const result = await supabase
+      .from('onboarding_data')
+      .update({
+        child_name: data.childName,
+        child_age: data.childAge,
+        child_gender: data.childGender,
+        primary_struggle: data.primaryStruggle,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id);
+    error = result.error;
+  } else {
+    // Insert new record
+    const result = await supabase.from('onboarding_data').insert({
+      user_id: userId,
+      child_name: data.childName,
+      child_age: data.childAge,
+      child_gender: data.childGender,
+      primary_struggle: data.primaryStruggle,
+    });
+    error = result.error;
+  }
 
   if (error) throw error;
   return true;
