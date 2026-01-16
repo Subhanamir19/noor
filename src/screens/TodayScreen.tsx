@@ -1,24 +1,71 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ImageBackground, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+/**
+ * TodayScreen - Main daily task screen with redesigned UI (V3)
+ *
+ * Layout Structure:
+ * 1. Hero background (fixed, fades on scroll)
+ * 2. Header bar (hamburger, heart, add button)
+ * 3. Scrollable content:
+ *    - Journey Progress Card (floating, overlaps hero)
+ *    - Goals Left Section
+ *    - Section Dividers with Task Cards
+ *    - Completion celebration
+ */
+
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ImageBackground,
+  Modal,
+  Pressable,
+  ScrollView,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+} from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  useAnimatedScrollHandler,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Cog6ToothIcon } from 'react-native-heroicons/outline';
-import { CheckCircleIcon } from 'react-native-heroicons/solid';
 
+// Components
+import {
+  TodayHeader,
+  JourneyProgressCard,
+  GoalsLeftSection,
+  SectionDivider,
+  TaskCard,
+} from '@/components/today';
 import {
   QuickCaptureButton,
   QuickCaptureSheet,
   QuickCaptureTooltip,
   useQuickCaptureTooltip,
 } from '@/components/character';
-import { IconButton } from '@/components/common/IconButton';
 import { CoachingModal } from '@/components/coaching';
 import { AyahOverlay, useAyahOverlay } from '@/components/today/AyahOverlay';
 import { DailyFeedbackModal } from '@/components/today/DailyFeedbackModal';
-import { TodayColors, TodayRadii, TodaySpacing, TodayShadows, TodayTypography } from '@/constants/todayTokens';
+
+// Design System
+import {
+  TodayScreenColors,
+  TodayScreenSpacing,
+  TodayScreenRadii,
+  TodayScreenTypography,
+  TodayScreenShadows,
+  TodayScreenMotion,
+} from '@/constants/todayScreenTokens';
+
+// Store & Types
 import type { MainTabParamList, RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/store/authStore';
 import { useCharacterStore } from '@/store/characterStore';
@@ -28,8 +75,14 @@ import { useJourneyStore } from '@/store/journeyStore';
 import { useMissionStore } from '@/store/missionStore';
 import type { DailyTask, DailyFeedbackRating } from '@/types/models';
 
-const SCREEN_GUTTER = TodaySpacing[16];
-const BACKGROUND_TOP_HEIGHT = 280; // Height of the top scene to keep visible
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+// Constants
+const HERO_HEIGHT = TodayScreenSpacing.heroHeight;
+const SCROLL_THRESHOLD = TodayScreenMotion.headerFade.scrollThreshold;
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Today'>,
@@ -39,10 +92,13 @@ type Props = CompositeScreenProps<
 export function TodayScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
 
-  // Scroll animation for header reveal effect
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const loadTodaysMission = useMissionStore((state) => state.loadTodaysMission);
+  // Scroll animation
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
 
   // Daily tasks store
   const todaysTasks = useDailyTasksStore((state) => state.todaysTasks);
@@ -51,9 +107,12 @@ export function TodayScreen({ navigation }: Props) {
   const loadTodaysTasks = useDailyTasksStore((state) => state.loadTodaysTasks);
   const completeDailyTask = useDailyTasksStore((state) => state.completeTask);
   const uncompleteDailyTask = useDailyTasksStore((state) => state.uncompleteTask);
-  const refreshDailyTasks = useDailyTasksStore((state) => state.refreshTasks);
   const submitDailyFeedback = useDailyTasksStore((state) => state.submitDailyFeedback);
   const hasFeedbackForToday = useDailyTasksStore((state) => state.hasFeedbackForToday);
+  const loadHPProgress = useDailyTasksStore((state) => state.loadHPProgress);
+
+  // Mission store
+  const loadTodaysMission = useMissionStore((state) => state.loadTodaysMission);
 
   // Character store (Quick Capture)
   const isQuickCaptureOpen = useCharacterStore((state) => state.isQuickCaptureOpen);
@@ -64,41 +123,42 @@ export function TodayScreen({ navigation }: Props) {
   // Coaching store
   const pendingIntervention = useCoachingStore((state) => state.pendingIntervention);
   const isInterventionModalVisible = useCoachingStore((state) => state.isInterventionModalVisible);
-  const activeChallenges = useCoachingStore((state) => state.activeChallenges);
-  const wellnessScore = useCoachingStore((state) => state.wellnessScore);
-  const tips = useCoachingStore((state) => state.tips);
   const loadCoachingData = useCoachingStore((state) => state.loadCoachingData);
   const acceptIntervention = useCoachingStore((state) => state.acceptIntervention);
   const declineIntervention = useCoachingStore((state) => state.declineIntervention);
-  const completeChallenge = useCoachingStore((state) => state.completeChallenge);
 
   // Journey store
   const journeyPhotos = useJourneyStore((state) => state.photos);
 
-  // Quick Capture tooltip (onboarding)
+  // Quick Capture tooltip
   const { showTooltip, dismissTooltip } = useQuickCaptureTooltip();
 
   // Ayah overlay
   const { handleAyahDismiss } = useAyahOverlay();
 
+  // Local state
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<DailyTask | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    startTheDay: true,
+    anyTime: true,
+  });
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Load data on mount
   useEffect(() => {
     if (!user?.id) return;
     loadTodaysMission(user.id);
     loadTodaysTasks(user.id);
+    loadHPProgress(user.id);
     loadTrees(user.id);
     loadCoachingData(user.id);
-  }, [loadTodaysMission, loadTodaysTasks, loadTrees, loadCoachingData, user?.id]);
+  }, [user?.id]);
 
-  // Show feedback modal when all daily tasks are complete
+  // Show feedback modal when all tasks complete
   useEffect(() => {
     if (feedbackTimeoutRef.current) {
       clearTimeout(feedbackTimeoutRef.current);
-      feedbackTimeoutRef.current = null;
     }
 
     const totalTasks = todaysTasks.dayTasks.length + todaysTasks.niceToHaveTasks.length;
@@ -115,75 +175,65 @@ export function TodayScreen({ navigation }: Props) {
     return () => {
       if (feedbackTimeoutRef.current) {
         clearTimeout(feedbackTimeoutRef.current);
-        feedbackTimeoutRef.current = null;
       }
     };
   }, [dailyTaskPercentage, showFeedbackModal, todaysTasks]);
 
-  const handleRefresh = async () => {
-    if (!user?.id) return;
-    setRefreshing(true);
-    try {
-      await Promise.all([
-        loadTodaysMission(user.id),
-        loadTodaysTasks(user.id),
-        loadTrees(user.id),
-        loadCoachingData(user.id),
-      ]);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Coaching handlers
-  const handleAcceptIntervention = async () => {
-    if (!user?.id || !pendingIntervention) return;
-    await acceptIntervention(user.id, pendingIntervention);
-  };
-
-  const handleDeclineIntervention = async () => {
-    if (!user?.id || !pendingIntervention) return;
-    await declineIntervention(user.id, pendingIntervention);
-  };
-
-  const handleCompleteChallenge = async (challengeId: string) => {
-    await completeChallenge(challengeId);
-  };
-
-  // Daily task handlers
-  const handleDailyTaskPress = (task: DailyTask) => {
-    setSelectedTask(task);
-  };
-
-  const handleDailyTaskComplete = async (taskId: string, isCompleted: boolean) => {
+  // Handlers
+  const handleDailyTaskComplete = useCallback(async (taskId: string, isCompleted: boolean) => {
     if (!user?.id) return;
     if (isCompleted) {
       await uncompleteDailyTask(user.id, taskId);
     } else {
       await completeDailyTask(user.id, taskId);
     }
-  };
+  }, [user?.id, completeDailyTask, uncompleteDailyTask]);
 
-  const handleSubmitFeedback = async (rating: DailyFeedbackRating) => {
+  const handleSubmitFeedback = useCallback(async (rating: DailyFeedbackRating) => {
     if (!user?.id) return;
     await submitDailyFeedback(user.id, rating);
     setShowFeedbackModal(false);
+  }, [user?.id, submitDailyFeedback]);
+
+  const handleAcceptIntervention = useCallback(async () => {
+    if (!user?.id || !pendingIntervention) return;
+    await acceptIntervention(user.id, pendingIntervention);
+  }, [user?.id, pendingIntervention, acceptIntervention]);
+
+  const handleDeclineIntervention = useCallback(async () => {
+    if (!user?.id || !pendingIntervention) return;
+    await declineIntervention(user.id, pendingIntervention);
+  }, [user?.id, pendingIntervention, declineIntervention]);
+
+  const toggleSection = (section: 'startTheDay' | 'anyTime') => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
   };
 
+  // Animated styles
+  const heroAnimatedStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, SCROLL_THRESHOLD],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
+
+  // Loading state
   if (!user?.id) {
     return (
-      <SafeAreaView
-        className="flex-1 items-center justify-center"
-        style={{ backgroundColor: TodayColors.bgApp }}
-        edges={['top']}
-      >
-        <Text style={{ color: TodayColors.textMuted, fontFamily: TodayTypography.poppinsSemiBold }}>
-          Preparing your space...
-        </Text>
+      <SafeAreaView style={styles.loadingContainer} edges={['top']}>
+        <Text style={styles.loadingText}>Preparing your space...</Text>
       </SafeAreaView>
     );
   }
 
+  // Calculate stats
   const allTasks = [...todaysTasks.dayTasks, ...todaysTasks.niceToHaveTasks];
   const completedCount = allTasks.filter((t) => dailyTaskCompletions[t.id]).length;
   const goalsLeft = Math.max(0, allTasks.length - completedCount);
@@ -192,138 +242,163 @@ export function TodayScreen({ navigation }: Props) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const capturedToday = journeyPhotos.some((p) => p.photo_date === today);
 
-  // Animation: header image fades out as user scrolls down
-  const SCROLL_THRESHOLD = 200;
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  // Separate tasks by time of day (morning vs anytime)
+  const morningTasks = todaysTasks.dayTasks.filter(
+    (t) => t.time_of_day === 'morning' || t.category?.includes('Prayer')
+  );
+  const anytimeTasks = [
+    ...todaysTasks.dayTasks.filter(
+      (t) => t.time_of_day !== 'morning' && !t.category?.includes('Prayer')
+    ),
+    ...todaysTasks.niceToHaveTasks,
+  ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#FFE4EF' }}>
-      {/* Ayah of the Day Overlay */}
+    <View style={styles.container}>
+      {/* Ayah Overlay */}
       <AyahOverlay onDismiss={handleAyahDismiss} />
 
-      {/* Fixed Background Image - fades as user scrolls */}
-      <Animated.View style={[styles.backgroundImageContainer, { opacity: headerOpacity }]}>
+      {/* Hero Background - Fades on scroll */}
+      <Animated.View style={[styles.heroContainer, heroAnimatedStyle]}>
         <ImageBackground
-          source={require('../../assets/today.jpeg')}
-          style={styles.backgroundImage}
+          source={require('../../assets/todayscreenbg.jpeg')}
+          style={styles.heroImage}
           resizeMode="cover"
         />
       </Animated.View>
 
-      {/* Settings button - fixed at top */}
-      <SafeAreaView style={styles.headerContainer} edges={['top']}>
-        <View style={styles.header}>
-          <View style={styles.headerSpacer} />
-          <IconButton
-            onPress={() => navigation.navigate('Settings')}
-            accessibilityRole="button"
-            accessibilityLabel="Open settings"
-            icon={<Cog6ToothIcon size={24} color={TodayColors.textPrimary} />}
-          />
-        </View>
-      </SafeAreaView>
+      {/* Header */}
+      <TodayHeader
+        onMenuPress={() => navigation.navigate('Settings')}
+        onHeartPress={() => {}}
+        onAddPress={openQuickCapture}
+        showNotification={false}
+      />
 
       {/* Scrollable Content */}
       <Animated.ScrollView
-        style={{ flex: 1 }}
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={scrollHandler}
       >
-        {/* Spacer for header scene visibility */}
-        <View style={{ height: BACKGROUND_TOP_HEIGHT }} />
+        {/* Hero Spacer */}
+        <View style={{ height: HERO_HEIGHT }} />
 
-        {/* Content Area - Pinkish section with rounded top corners */}
+        {/* Content Area */}
         <View style={styles.contentContainer}>
-          {/* Adventure Progress Bar */}
-          <View style={styles.adventureSection}>
-            <View style={styles.adventureBadge}>
-              <Text style={styles.adventureBadgeIcon}>⚡</Text>
-              <View style={styles.adventureTextContainer}>
-                <Text style={styles.adventureTitle}>77th Adventure</Text>
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBarTrack}>
-                    <View style={[styles.progressBarFill, { width: '43%' }]} />
-                  </View>
-                  <Text style={styles.progressText}>15 / 35</Text>
-                </View>
-              </View>
-            </View>
+          {/* Journey Progress Card (overlapping) */}
+          <JourneyProgressCard
+            journeyNumber={1}
+            journeyTitle="Akhlaq Journey"
+            currentProgress={completedCount}
+            totalSteps={12}
+          />
+
+          {/* Goals Left */}
+          <View style={styles.goalsSection}>
+            <GoalsLeftSection
+              goalsLeft={goalsLeft}
+              onSparklePress={() => {}}
+            />
           </View>
 
-          {/* Goals Left Counter */}
-          <View style={styles.goalsLeftSection}>
-            <View style={styles.goalsLeftBadge}>
-              <Text style={styles.goalsLeftIcon}>📋</Text>
-              <Text style={styles.goalsLeftText}>
-                {goalsLeft} {goalsLeft === 1 ? 'goal' : 'goals'} left for today!
-              </Text>
-              <View style={styles.goalsBadgeCircle}>
-                <Text style={styles.goalsBadgeText}>+</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Task List */}
-          <View style={styles.taskListContainer}>
-            {allTasks.map((task, index) => (
-              <TaskButton
-                key={task.id}
-                task={task}
-                isCompleted={!!dailyTaskCompletions[task.id]}
-                onPress={() => handleDailyTaskPress(task)}
-                onToggleComplete={() => handleDailyTaskComplete(task.id, !!dailyTaskCompletions[task.id])}
+          {/* Start the Day Section */}
+          {morningTasks.length > 0 && (
+            <>
+              <SectionDivider
+                title="Start the day"
+                isExpanded={expandedSections.startTheDay}
+                onToggle={() => toggleSection('startTheDay')}
               />
-            ))}
+              {expandedSections.startTheDay && (
+                <View style={styles.taskList}>
+                  {morningTasks.map((task, index) => (
+                    <TaskCard
+                      key={task.id}
+                      id={task.id}
+                      title={task.title}
+                      icon={task.icon}
+                      category={task.category}
+                      points={task.hp_value || 5}
+                      isCompleted={!!dailyTaskCompletions[task.id]}
+                      onComplete={() => handleDailyTaskComplete(task.id, !!dailyTaskCompletions[task.id])}
+                      onPress={() => setSelectedTask(task)}
+                      showMascot={index === 0}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          )}
 
-            {/* Completion Celebration Card - Prompt to capture photo */}
-            {goalsLeft === 0 && allTasks.length > 0 && !capturedToday && (
-              <View style={styles.completionCard}>
-                <Text style={styles.completionEmoji}>🎉</Text>
-                <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
-                <Text style={styles.completionSubtitle}>
-                  You completed all tasks today!
-                </Text>
+          {/* Any Time Section */}
+          {anytimeTasks.length > 0 && (
+            <>
+              <SectionDivider
+                title="Any time"
+                isExpanded={expandedSections.anyTime}
+                onToggle={() => toggleSection('anyTime')}
+              />
+              {expandedSections.anyTime && (
+                <View style={styles.taskList}>
+                  {anytimeTasks.map((task, index) => (
+                    <TaskCard
+                      key={task.id}
+                      id={task.id}
+                      title={task.title}
+                      icon={task.icon}
+                      category={task.category}
+                      points={task.hp_value || 5}
+                      isCompleted={!!dailyTaskCompletions[task.id]}
+                      onComplete={() => handleDailyTaskComplete(task.id, !!dailyTaskCompletions[task.id])}
+                      onPress={() => setSelectedTask(task)}
+                      showMascot={index === 1}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
+          )}
 
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.capturePhotoButton,
-                    pressed && styles.capturePhotoButtonPressed,
-                  ]}
-                  onPress={() => navigation.navigate('Journey' as any)}
-                >
-                  <Text style={styles.capturePhotoIcon}>📸</Text>
-                  <Text style={styles.capturePhotoText}>Capture Today's Memory</Text>
-                </Pressable>
+          {/* Completion Celebration */}
+          {goalsLeft === 0 && allTasks.length > 0 && !capturedToday && (
+            <View style={styles.completionCard}>
+              <Text style={styles.completionEmoji}>🎉</Text>
+              <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
+              <Text style={styles.completionSubtitle}>
+                You completed all tasks today!
+              </Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.captureButton,
+                  pressed && styles.captureButtonPressed,
+                ]}
+                onPress={() => navigation.navigate('Journey' as any)}
+              >
+                <Text style={styles.captureButtonIcon}>📸</Text>
+                <Text style={styles.captureButtonText}>Capture Today's Memory</Text>
+              </Pressable>
+              <Text style={styles.completionHint}>
+                Save this beautiful moment in your Journey
+              </Text>
+            </View>
+          )}
 
-                <Text style={styles.completionHint}>
-                  Save this beautiful moment in your Journey
-                </Text>
-              </View>
-            )}
+          {/* Already Captured */}
+          {goalsLeft === 0 && allTasks.length > 0 && capturedToday && (
+            <View style={styles.completionCardSimple}>
+              <Text style={styles.completionEmoji}>🎉</Text>
+              <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
+              <Text style={styles.completionSubtitle}>
+                You've completed all tasks and captured today's memory!
+              </Text>
+            </View>
+          )}
 
-            {/* Already Captured - Show Celebration Only */}
-            {goalsLeft === 0 && allTasks.length > 0 && capturedToday && (
-              <View style={styles.completionCardSimple}>
-                <Text style={styles.completionEmoji}>🎉</Text>
-                <Text style={styles.completionTitle}>MashAllah! All Done!</Text>
-                <Text style={styles.completionSubtitle}>
-                  You've completed all tasks and captured today's memory!
-                </Text>
-              </View>
-            )}
-
-            {/* Bottom spacing for tab bar */}
-            <View style={{ height: 100 }} />
-          </View>
+          {/* Bottom Spacer for Tab Bar */}
+          <View style={{ height: TodayScreenSpacing.tabBarHeight + 20 }} />
         </View>
       </Animated.ScrollView>
 
@@ -334,7 +409,7 @@ export function TodayScreen({ navigation }: Props) {
         presentationStyle="pageSheet"
         onRequestClose={() => setSelectedTask(null)}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: TodayColors.bgApp }}>
+        <SafeAreaView style={styles.modalContainer}>
           <TaskDetailContent
             task={selectedTask}
             onClose={() => setSelectedTask(null)}
@@ -342,6 +417,7 @@ export function TodayScreen({ navigation }: Props) {
         </SafeAreaView>
       </Modal>
 
+      {/* Feedback Modal */}
       <DailyFeedbackModal
         visible={showFeedbackModal}
         onSubmit={handleSubmitFeedback}
@@ -351,105 +427,30 @@ export function TodayScreen({ navigation }: Props) {
       {/* Quick Capture FAB */}
       <QuickCaptureButton onPress={openQuickCapture} pulse={showTooltip} />
 
-      {/* Quick Capture Tooltip (first-time onboarding) */}
+      {/* Quick Capture Tooltip */}
       <QuickCaptureTooltip visible={showTooltip} onDismiss={dismissTooltip} />
 
       {/* Quick Capture Sheet */}
       {user?.id && (
-        <QuickCaptureSheet visible={isQuickCaptureOpen} userId={user.id} onClose={closeQuickCapture} />
+        <QuickCaptureSheet
+          visible={isQuickCaptureOpen}
+          userId={user.id}
+          onClose={closeQuickCapture}
+        />
       )}
 
-      {/* Coaching Intervention Modal */}
-      <CoachingModal visible={isInterventionModalVisible} trigger={pendingIntervention} onAccept={handleAcceptIntervention} onDecline={handleDeclineIntervention} />
+      {/* Coaching Modal */}
+      <CoachingModal
+        visible={isInterventionModalVisible}
+        trigger={pendingIntervention}
+        onAccept={handleAcceptIntervention}
+        onDecline={handleDeclineIntervention}
+      />
     </View>
   );
 }
 
-// TaskButton Component - Duolingo-style 3D chunky button
-interface TaskButtonProps {
-  task: DailyTask;
-  isCompleted: boolean;
-  onPress: () => void;
-  onToggleComplete: () => void;
-}
-
-function TaskButton({ task, isCompleted, onPress, onToggleComplete }: TaskButtonProps) {
-  const shadowHeight = 6;
-
-  return (
-    <Pressable onPress={onPress} style={styles.taskButtonWrapper}>
-      {({ pressed }) => {
-        const translateY = pressed ? shadowHeight : 0;
-        const currentShadowHeight = pressed ? 0 : shadowHeight;
-
-        return (
-          <View style={{ width: '100%' }}>
-            {/* Shadow layer - EXACT Duolingo style */}
-            <View
-              style={[
-                {
-                  position: 'absolute',
-                  top: shadowHeight,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: '#9CA3AF',
-                  borderRadius: 20,
-                },
-                isCompleted && { backgroundColor: '#4ADE80' },
-              ]}
-            />
-
-            {/* Main button surface */}
-            <View
-              style={[
-                styles.taskButtonContent,
-                {
-                  transform: [{ translateY }],
-                  marginBottom: currentShadowHeight,
-                },
-                isCompleted && styles.taskButtonContentCompleted,
-              ]}
-            >
-              {/* Icon */}
-              <View style={[styles.taskIconContainer, isCompleted && styles.taskIconContainerCompleted]}>
-                <Text style={styles.taskIcon}>{task.icon || '✨'}</Text>
-              </View>
-
-              {/* Task Text */}
-              <Text
-                style={[styles.taskText, isCompleted && styles.taskTextCompleted]}
-                numberOfLines={2}
-              >
-                {task.title}
-              </Text>
-
-              {/* Checkmark - Tappable */}
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onToggleComplete();
-                }}
-                hitSlop={12}
-                style={styles.checkmarkPressable}
-              >
-                {isCompleted ? (
-                  <View style={styles.checkmarkCircleCompleted}>
-                    <CheckCircleIcon size={30} color={TodayColors.success} />
-                  </View>
-                ) : (
-                  <View style={styles.checkmarkCircleEmpty} />
-                )}
-              </Pressable>
-            </View>
-          </View>
-        );
-      }}
-    </Pressable>
-  );
-}
-
-// TaskDetailContent Component
+// Task Detail Content Component
 interface TaskDetailContentProps {
   task: DailyTask | null;
   onClose: () => void;
@@ -459,7 +460,7 @@ function TaskDetailContent({ task, onClose }: TaskDetailContentProps) {
   if (!task) return null;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.detailContainer}>
       {/* Header */}
       <View style={styles.detailHeader}>
         <Text style={styles.detailTitle}>Task Details</Text>
@@ -469,7 +470,7 @@ function TaskDetailContent({ task, onClose }: TaskDetailContentProps) {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.detailContent} contentContainerStyle={styles.detailContentContainer}>
+      <ScrollView style={styles.detailContent}>
         <View style={styles.detailIconContainer}>
           <Text style={styles.detailIcon}>{task.icon || '✨'}</Text>
         </View>
@@ -483,14 +484,16 @@ function TaskDetailContent({ task, onClose }: TaskDetailContentProps) {
           </View>
         )}
 
+        {task.benefit_text && (
+          <View style={styles.detailSection}>
+            <Text style={styles.detailSectionTitle}>Why This Matters</Text>
+            <Text style={styles.detailSectionText}>{task.benefit_text}</Text>
+          </View>
+        )}
+
         <View style={styles.detailSection}>
           <Text style={styles.detailSectionTitle}>Category</Text>
           <Text style={styles.detailSectionText}>{task.category}</Text>
-        </View>
-
-        <View style={styles.detailSection}>
-          <Text style={styles.detailSectionTitle}>Age Group</Text>
-          <Text style={styles.detailSectionText}>{task.age_appropriate}</Text>
         </View>
 
         {task.tags && task.tags.length > 0 && (
@@ -510,339 +513,206 @@ function TaskDetailContent({ task, onClose }: TaskDetailContentProps) {
   );
 }
 
+// Styles
 const styles = StyleSheet.create({
-  backgroundImageContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: TodayScreenColors.bgApp,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: TodayScreenColors.bgApp,
+  },
+  loadingText: {
+    fontSize: TodayScreenTypography.body.fontSize,
+    fontFamily: TodayScreenTypography.fontMedium,
+    color: TodayScreenColors.textMuted,
+  },
+  heroContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: BACKGROUND_TOP_HEIGHT + 100, // Extend slightly below the visible area
+    height: HERO_HEIGHT + 100,
     zIndex: 0,
   },
-  backgroundImage: {
+  heroImage: {
     flex: 1,
   },
-  headerContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  header: {
-    paddingHorizontal: SCREEN_GUTTER,
-    paddingTop: TodaySpacing[8],
-    paddingBottom: TodaySpacing[8],
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerSpacer: {
-    width: 44,
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
   },
   contentContainer: {
     flex: 1,
-    minHeight: 800, // Ensure content extends to fill screen
-    backgroundColor: '#FFE4EF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: TodaySpacing[16],
-    paddingHorizontal: SCREEN_GUTTER,
+    minHeight: 800,
+    backgroundColor: TodayScreenColors.bgApp,
+    borderTopLeftRadius: TodayScreenRadii.contentContainer,
+    borderTopRightRadius: TodayScreenRadii.contentContainer,
+    paddingTop: TodayScreenSpacing.lg,
   },
-  taskListContainer: {
-    paddingBottom: TodaySpacing[20],
+  goalsSection: {
+    marginTop: TodayScreenSpacing.lg,
   },
-  adventureSection: {
-    marginBottom: TodaySpacing[12],
+  taskList: {
+    paddingBottom: TodayScreenSpacing.sm,
   },
-  adventureBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: TodayRadii.xl,
-    padding: TodaySpacing[12],
-    ...TodayShadows.softFloat,
-  },
-  adventureBadgeIcon: {
-    fontSize: 32,
-    marginRight: TodaySpacing[12],
-  },
-  adventureTextContainer: {
-    flex: 1,
-  },
-  adventureTitle: {
-    fontSize: TodayTypography.h3.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textPrimary,
-    marginBottom: TodaySpacing[6],
-  },
-  progressBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: TodaySpacing[8],
-  },
-  progressBarTrack: {
-    flex: 1,
-    height: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: TodayRadii.pill,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#FCD34D',
-    borderRadius: TodayRadii.pill,
-  },
-  progressText: {
-    fontSize: TodayTypography.body.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textSecondary,
-  },
-  goalsLeftSection: {
-    marginBottom: TodaySpacing[16],
-  },
-  goalsLeftBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: TodayRadii.xl,
-    padding: TodaySpacing[12],
-    ...TodayShadows.softFloat,
-  },
-  goalsLeftIcon: {
-    fontSize: 24,
-    marginRight: TodaySpacing[10],
-  },
-  goalsLeftText: {
-    flex: 1,
-    fontSize: TodayTypography.bodyLarge.fontSize,
-    fontFamily: TodayTypography.poppinsSemiBold,
-    color: TodayColors.textPrimary,
-  },
-  goalsBadgeCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: TodayColors.infoBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  goalsBadgeText: {
-    fontSize: 18,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.ctaSecondary,
-  },
-  // Duolingo-style 3D Button Wrapper
-  taskButtonWrapper: {
-    marginBottom: 18,
-  },
-  taskButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-    borderWidth: 3,
-    borderColor: '#E5E7EB',
-  },
-  taskButtonContentCompleted: {
-    opacity: 0.85,
-  },
-  taskIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FEF3C7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  taskIconContainerCompleted: {
-    backgroundColor: '#D1FAE5',
-  },
-  taskIcon: {
-    fontSize: 26,
-  },
-  taskText: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 21,
-    fontFamily: TodayTypography.poppinsSemiBold,
-    color: '#1F2937',
-    marginRight: 12,
-  },
-  taskTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#9CA3AF',
-  },
-  checkmarkPressable: {
-    padding: 2,
-  },
-  checkmarkCircleCompleted: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#ECFDF5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkmarkCircleEmpty: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 3,
-    borderColor: '#D1D5DB',
-  },
-  // Completion Card Styles
+  // Completion Card
   completionCard: {
-    marginTop: TodaySpacing[20],
-    backgroundColor: '#FFFFFF',
-    borderRadius: TodayRadii.xl,
-    padding: TodaySpacing[24],
+    marginTop: TodayScreenSpacing.xl,
+    marginHorizontal: TodayScreenSpacing.screenGutter,
+    backgroundColor: TodayScreenColors.bgCard,
+    borderRadius: TodayScreenRadii.lg,
+    padding: TodayScreenSpacing.xxl,
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: TodayColors.success,
-    ...TodayShadows.softFloat,
+    borderColor: TodayScreenColors.success,
+    ...TodayScreenShadows.card,
+  },
+  completionCardSimple: {
+    marginTop: TodayScreenSpacing.xl,
+    marginHorizontal: TodayScreenSpacing.screenGutter,
+    backgroundColor: TodayScreenColors.bgCard,
+    borderRadius: TodayScreenRadii.lg,
+    padding: TodayScreenSpacing.xxl,
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: TodayScreenColors.success,
+    ...TodayScreenShadows.card,
   },
   completionEmoji: {
     fontSize: 48,
-    marginBottom: TodaySpacing[12],
+    marginBottom: TodayScreenSpacing.md,
   },
   completionTitle: {
-    fontSize: TodayTypography.h2.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textPrimary,
-    marginBottom: TodaySpacing[6],
+    fontSize: TodayScreenTypography.h2.fontSize,
+    fontFamily: TodayScreenTypography.fontBold,
+    color: TodayScreenColors.textPrimary,
+    marginBottom: TodayScreenSpacing.xs,
     textAlign: 'center',
   },
   completionSubtitle: {
-    fontSize: TodayTypography.bodyLarge.fontSize,
-    fontFamily: TodayTypography.poppinsMedium,
-    color: TodayColors.textSecondary,
-    marginBottom: TodaySpacing[20],
+    fontSize: TodayScreenTypography.bodyLarge.fontSize,
+    fontFamily: TodayScreenTypography.fontMedium,
+    color: TodayScreenColors.textSecondary,
+    marginBottom: TodayScreenSpacing.xl,
     textAlign: 'center',
   },
-  capturePhotoButton: {
+  captureButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: TodayColors.ctaPrimary,
-    paddingVertical: TodaySpacing[14],
-    paddingHorizontal: TodaySpacing[24],
-    borderRadius: TodayRadii.lg,
-    marginBottom: TodaySpacing[12],
-    ...TodayShadows.softFloat,
+    backgroundColor: TodayScreenColors.primary,
+    paddingVertical: TodayScreenSpacing.cardPadding,
+    paddingHorizontal: TodayScreenSpacing.xxl,
+    borderRadius: TodayScreenRadii.md,
+    marginBottom: TodayScreenSpacing.md,
+    ...TodayScreenShadows.buttonLedge,
   },
-  capturePhotoButtonPressed: {
-    backgroundColor: TodayColors.ctaPrimaryPressed,
+  captureButtonPressed: {
+    backgroundColor: TodayScreenColors.primaryPressed,
     transform: [{ scale: 0.98 }],
   },
-  capturePhotoIcon: {
+  captureButtonIcon: {
     fontSize: 24,
-    marginRight: TodaySpacing[10],
+    marginRight: TodayScreenSpacing.md - 2,
   },
-  capturePhotoText: {
-    fontSize: TodayTypography.bodyLarge.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textInverse,
+  captureButtonText: {
+    fontSize: TodayScreenTypography.bodyLarge.fontSize,
+    fontFamily: TodayScreenTypography.fontBold,
+    color: TodayScreenColors.textInverse,
   },
   completionHint: {
-    fontSize: TodayTypography.caption.fontSize,
-    fontFamily: TodayTypography.poppinsMedium,
-    color: TodayColors.textMuted,
+    fontSize: TodayScreenTypography.caption.fontSize,
+    fontFamily: TodayScreenTypography.fontMedium,
+    color: TodayScreenColors.textMuted,
     textAlign: 'center',
   },
-  completionCardSimple: {
-    marginTop: TodaySpacing[20],
-    backgroundColor: '#FFFFFF',
-    borderRadius: TodayRadii.xl,
-    padding: TodaySpacing[24],
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: TodayColors.success,
-    ...TodayShadows.softFloat,
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: TodayScreenColors.bgApp,
   },
-  // Detail Modal Styles
+  detailContainer: {
+    flex: 1,
+  },
   detailHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: SCREEN_GUTTER,
-    paddingVertical: TodaySpacing[16],
+    paddingHorizontal: TodayScreenSpacing.screenGutter,
+    paddingVertical: TodayScreenSpacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: TodayColors.strokeSubtle,
+    borderBottomColor: TodayScreenColors.strokeSubtle,
   },
   detailTitle: {
-    fontSize: TodayTypography.h2.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textPrimary,
+    fontSize: TodayScreenTypography.h2.fontSize,
+    fontFamily: TodayScreenTypography.fontBold,
+    color: TodayScreenColors.textPrimary,
   },
   detailCloseButton: {
     fontSize: 28,
-    color: TodayColors.textMuted,
+    color: TodayScreenColors.textMuted,
     fontWeight: '300',
   },
   detailContent: {
     flex: 1,
-  },
-  detailContentContainer: {
-    padding: SCREEN_GUTTER,
+    padding: TodayScreenSpacing.screenGutter,
   },
   detailIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: TodayScreenColors.iconBgDefault,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: TodaySpacing[16],
+    marginBottom: TodayScreenSpacing.lg,
   },
   detailIcon: {
     fontSize: 40,
   },
   detailTaskTitle: {
-    fontSize: TodayTypography.h1.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textPrimary,
+    fontSize: TodayScreenTypography.h1.fontSize,
+    fontFamily: TodayScreenTypography.fontBold,
+    color: TodayScreenColors.textPrimary,
     textAlign: 'center',
-    marginBottom: TodaySpacing[24],
+    marginBottom: TodayScreenSpacing.xxl,
   },
   detailSection: {
-    marginBottom: TodaySpacing[20],
+    marginBottom: TodayScreenSpacing.xl,
   },
   detailSectionTitle: {
-    fontSize: TodayTypography.h3.fontSize,
-    fontFamily: TodayTypography.bricolageBold,
-    color: TodayColors.textPrimary,
-    marginBottom: TodaySpacing[8],
+    fontSize: TodayScreenTypography.h3.fontSize,
+    fontFamily: TodayScreenTypography.fontBold,
+    color: TodayScreenColors.textPrimary,
+    marginBottom: TodayScreenSpacing.sm,
   },
   detailSectionText: {
-    fontSize: TodayTypography.bodyLarge.fontSize,
-    lineHeight: TodayTypography.bodyLarge.lineHeight,
-    fontFamily: TodayTypography.poppinsMedium,
-    color: TodayColors.textSecondary,
+    fontSize: TodayScreenTypography.bodyLarge.fontSize,
+    lineHeight: TodayScreenTypography.bodyLarge.lineHeight,
+    fontFamily: TodayScreenTypography.fontMedium,
+    color: TodayScreenColors.textSecondary,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: TodaySpacing[8],
+    gap: TodayScreenSpacing.sm,
   },
   tag: {
-    backgroundColor: TodayColors.infoBg,
-    borderRadius: TodayRadii.sm,
-    paddingVertical: TodaySpacing[6],
-    paddingHorizontal: TodaySpacing[12],
+    backgroundColor: TodayScreenColors.primaryBg,
+    borderRadius: TodayScreenRadii.sm,
+    paddingVertical: TodayScreenSpacing.xs + 2,
+    paddingHorizontal: TodayScreenSpacing.md,
     borderWidth: 1,
-    borderColor: TodayColors.infoBorder,
+    borderColor: TodayScreenColors.primaryBorder,
   },
   tagText: {
-    fontSize: TodayTypography.caption.fontSize,
-    fontFamily: TodayTypography.poppinsSemiBold,
-    color: TodayColors.ctaSecondary,
+    fontSize: TodayScreenTypography.caption.fontSize,
+    fontFamily: TodayScreenTypography.fontSemiBold,
+    color: TodayScreenColors.primary,
   },
 });

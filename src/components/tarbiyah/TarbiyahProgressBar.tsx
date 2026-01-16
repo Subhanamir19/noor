@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     width: TarbiyahSizes.closeButton,
     height: TarbiyahSizes.closeButton,
     borderRadius: TarbiyahRadius.full,
-    backgroundColor: `rgba(255,255,255,0.1)`,
+    backgroundColor: `rgba(0,0,0,0.08)`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 16,
     height: 2,
-    backgroundColor: `rgba(255,255,255,0.6)`,
+    backgroundColor: `rgba(0,0,0,0.5)`,
     borderRadius: 1,
   },
   closeLineLeft: {

@@ -1,30 +1,26 @@
 /**
  * NoorChatBubble - Speech bubble with animated text for Tarbiyah chat mode
  *
- * Displays the speech bubble PNG with lesson content inside.
- * Handles content parsing, adaptive sizing, and typewriter animation.
+ * Production-grade implementation with View-based bubble and SVG tail.
+ * No PNG stretching - all rendered with code for pixel-perfect consistency.
  */
 
-import React, { memo, useMemo, useState, useEffect, useCallback } from 'react';
+import React, { memo, useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ImageBackground,
   Dimensions,
   ScrollView,
 } from 'react-native';
 import Animated, {
   FadeIn,
-  FadeOut,
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
   withSpring,
-  Easing,
 } from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 import {
-  TarbiyahColors,
   TarbiyahTypography,
   TarbiyahSpacing,
   TarbiyahChatTokens,
@@ -34,177 +30,61 @@ import type { TarbiyahStep } from '../../../data/tarbiyahLessons';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Content segment types for different styling
-type ContentSegmentType =
-  | 'arabic'
-  | 'translation'
-  | 'reference'
-  | 'quote'
-  | 'numbered'
-  | 'body'
-  | 'highlight';
-
-interface ContentSegment {
-  type: ContentSegmentType;
-  text: string;
-}
+// Production-grade constants matching PNG exactly
+const BUBBLE_BG = '#FFFFFF';
+const BUBBLE_BORDER = '#2B2B2B';
+const BORDER_WIDTH = 3;
+const BORDER_RADIUS = 20;
 
 interface NoorChatBubbleProps {
   step: TarbiyahStep;
   stepType: TarbiyahStepType;
   onAnimationComplete?: () => void;
-  /** Key to force re-render and restart animation */
   animationKey?: number;
 }
 
 /**
- * Parse step content into styled segments
+ * Combine all content into a single string for display
  */
-function parseStepContent(
-  step: TarbiyahStep,
-  stepType: TarbiyahStepType
-): ContentSegment[] {
-  const segments: ContentSegment[] = [];
+function getDisplayContent(step: TarbiyahStep, stepType: TarbiyahStepType): string {
+  let content = '';
 
-  // Add Arabic text for Sunnah step (displayed first)
+  // Add Arabic text for Sunnah step
   if (stepType === 'sunnah' && step.arabicText) {
-    segments.push({ type: 'arabic', text: step.arabicText });
+    content += step.arabicText + '\n\n';
     if (step.arabicTranslation) {
-      segments.push({ type: 'translation', text: step.arabicTranslation });
+      content += `"${step.arabicTranslation}"\n\n`;
     }
     if (step.reference) {
-      segments.push({ type: 'reference', text: `— ${step.reference}` });
+      content += `— ${step.reference}\n\n`;
     }
   }
 
-  // Parse main content into paragraphs
-  const paragraphs = step.content.split('\n\n').filter((p) => p.trim());
+  // Add main content
+  content += step.content;
 
-  paragraphs.forEach((para) => {
-    const trimmed = para.trim();
-
-    // Check if it's a quote (starts with quotation marks)
-    if (trimmed.startsWith('"') || trimmed.startsWith('"')) {
-      segments.push({ type: 'quote', text: trimmed });
-    }
-    // Check if it's a numbered list
-    else if (/^\d+\./.test(trimmed)) {
-      segments.push({ type: 'numbered', text: trimmed });
-    }
-    // Regular body text
-    else {
-      segments.push({ type: 'body', text: trimmed });
-    }
-  });
-
-  return segments;
+  return content.trim();
 }
 
 /**
- * Calculate total content length for adaptive sizing
+ * Calculate adaptive styling based on content length
  */
-function calculateContentLength(segments: ContentSegment[]): number {
-  return segments.reduce((total, seg) => total + seg.text.length, 0);
-}
-
-/**
- * Get adaptive text style based on content length
- */
-function getAdaptiveTextStyle(contentLength: number) {
+function getAdaptiveStyle(contentLength: number) {
   if (contentLength < 300) {
     return {
       fontSize: TarbiyahChatTokens.text.short.fontSize,
       lineHeight: TarbiyahChatTokens.text.short.lineHeight,
-      padding: TarbiyahChatTokens.bubble.padding.short,
     };
   } else if (contentLength > 500) {
     return {
       fontSize: TarbiyahChatTokens.text.long.fontSize,
       lineHeight: TarbiyahChatTokens.text.long.lineHeight,
-      padding: TarbiyahChatTokens.bubble.padding.long,
     };
   }
   return {
     fontSize: TarbiyahChatTokens.text.medium.fontSize,
     lineHeight: TarbiyahChatTokens.text.medium.lineHeight,
-    padding: TarbiyahChatTokens.bubble.padding.medium,
   };
-}
-
-/**
- * TypewriterSegment - Animates a single text segment
- */
-interface TypewriterSegmentProps {
-  text: string;
-  style: object;
-  delay: number;
-  speed: number;
-  onComplete?: () => void;
-}
-
-function TypewriterSegment({
-  text,
-  style,
-  delay,
-  speed,
-  onComplete,
-}: TypewriterSegmentProps) {
-  const [visibleCount, setVisibleCount] = useState(0);
-
-  useEffect(() => {
-    setVisibleCount(0);
-    let index = 0;
-    let timeoutId: NodeJS.Timeout;
-    const baseInterval = 1000 / speed;
-
-    const startAnimation = () => {
-      const animate = () => {
-        if (index < text.length) {
-          const char = text[index];
-          index++;
-          setVisibleCount(index);
-
-          // Variable timing for natural feel
-          let nextInterval = baseInterval;
-
-          if (['.', '!', '?'].includes(char)) {
-            nextInterval = baseInterval * 6;
-          } else if ([',', ';', ':'].includes(char)) {
-            nextInterval = baseInterval * 3;
-          } else if (char === ' ') {
-            nextInterval = baseInterval * 1.2;
-          } else if (char === '\n') {
-            nextInterval = baseInterval * 4;
-          }
-
-          // Add slight randomness (±20%)
-          const variance = nextInterval * 0.2;
-          nextInterval += (Math.random() - 0.5) * variance;
-
-          timeoutId = setTimeout(animate, nextInterval);
-        } else {
-          onComplete?.();
-        }
-      };
-      animate();
-    };
-
-    const delayTimeout = setTimeout(startAnimation, delay);
-
-    return () => {
-      clearTimeout(delayTimeout);
-      clearTimeout(timeoutId);
-    };
-  }, [text, delay, speed, onComplete]);
-
-  return (
-    <View>
-      {/* Invisible text for stable layout */}
-      <Text style={[style, styles.invisible]}>{text}</Text>
-      {/* Visible animated text */}
-      <Text style={[style, styles.overlayText]}>{text.slice(0, visibleCount)}</Text>
-    </View>
-  );
 }
 
 function NoorChatBubbleComponent({
@@ -213,119 +93,71 @@ function NoorChatBubbleComponent({
   onAnimationComplete,
   animationKey = 0,
 }: NoorChatBubbleProps) {
-  // Parse content into segments
-  const segments = useMemo(
-    () => parseStepContent(step, stepType),
+  // Get full content to display
+  const fullContent = useMemo(
+    () => getDisplayContent(step, stepType),
     [step, stepType]
   );
 
-  // Calculate content length and adaptive styles
-  const contentLength = useMemo(
-    () => calculateContentLength(segments),
-    [segments]
-  );
+  // Get adaptive styling
   const adaptiveStyle = useMemo(
-    () => getAdaptiveTextStyle(contentLength),
-    [contentLength]
+    () => getAdaptiveStyle(fullContent.length),
+    [fullContent.length]
   );
 
-  // Track which segments have completed animation
-  const [completedSegments, setCompletedSegments] = useState<number[]>([]);
+  // Typewriter state
+  const [displayedText, setDisplayedText] = useState('');
+  const [isComplete, setIsComplete] = useState(false);
+  const animationRef = useRef<NodeJS.Timeout | null>(null);
+  const indexRef = useRef(0);
 
-  // Reset completed segments when animation key changes (new step)
+  // Reset and start animation when step changes
   useEffect(() => {
-    setCompletedSegments([]);
-  }, [animationKey]);
-
-  // Handle segment completion
-  const handleSegmentComplete = useCallback(
-    (index: number) => {
-      setCompletedSegments((prev) => {
-        const updated = [...prev, index];
-        // Check if all segments are complete
-        if (updated.length === segments.length) {
-          onAnimationComplete?.();
-        }
-        return updated;
-      });
-    },
-    [segments.length, onAnimationComplete]
-  );
-
-  // Calculate animation delays for each segment
-  const getSegmentDelay = (index: number): number => {
-    // Base delay before first segment starts
-    const baseDelay = 400;
-    // Estimate previous segments duration (rough: 20ms per char)
-    let cumulativeDelay = baseDelay;
-    for (let i = 0; i < index; i++) {
-      const prevSegment = segments[i];
-      // Estimate based on character count and speed
-      const charDuration = prevSegment.text.length * (1000 / TarbiyahChatTokens.animation.typewriterSpeed);
-      cumulativeDelay += charDuration + 200; // + gap between segments
+    // Clear any existing animation
+    if (animationRef.current) {
+      clearTimeout(animationRef.current);
     }
-    return cumulativeDelay;
-  };
 
-  // Get style for each segment type
-  const getSegmentStyle = (type: ContentSegmentType) => {
-    const baseStyle = {
-      fontFamily: TarbiyahTypography.fontBody,
-      fontSize: adaptiveStyle.fontSize,
-      lineHeight: adaptiveStyle.lineHeight,
-      color: TarbiyahChatTokens.text.color,
+    // Reset state
+    setDisplayedText('');
+    setIsComplete(false);
+    indexRef.current = 0;
+
+    const speed = TarbiyahChatTokens.animation.typewriterSpeed;
+    const baseInterval = 1000 / speed;
+
+    const animate = () => {
+      if (indexRef.current < fullContent.length) {
+        const char = fullContent[indexRef.current];
+        indexRef.current++;
+        setDisplayedText(fullContent.slice(0, indexRef.current));
+
+        // Variable timing for natural feel
+        let nextInterval = baseInterval;
+        if (['.', '!', '?'].includes(char)) {
+          nextInterval = baseInterval * 5;
+        } else if ([',', ';', ':'].includes(char)) {
+          nextInterval = baseInterval * 2.5;
+        } else if (char === '\n') {
+          nextInterval = baseInterval * 3;
+        }
+
+        animationRef.current = setTimeout(animate, nextInterval);
+      } else {
+        setIsComplete(true);
+        onAnimationComplete?.();
+      }
     };
 
-    switch (type) {
-      case 'arabic':
-        return {
-          ...baseStyle,
-          fontFamily: TarbiyahTypography.fontArabic,
-          fontSize: TarbiyahTypography.arabicBody.fontSize,
-          lineHeight: TarbiyahTypography.arabicBody.lineHeight,
-          color: TarbiyahChatTokens.text.arabicColor,
-          textAlign: 'center' as const,
-          writingDirection: 'rtl' as const,
-          marginBottom: TarbiyahSpacing.space8,
-        };
-      case 'translation':
-        return {
-          ...baseStyle,
-          fontStyle: 'italic' as const,
-          fontWeight: '500' as const,
-          textAlign: 'center' as const,
-          marginBottom: TarbiyahSpacing.space4,
-        };
-      case 'reference':
-        return {
-          ...baseStyle,
-          fontSize: adaptiveStyle.fontSize - 2,
-          color: '#8A847A',
-          textAlign: 'center' as const,
-          marginBottom: TarbiyahSpacing.space16,
-        };
-      case 'quote':
-        return {
-          ...baseStyle,
-          fontStyle: 'italic' as const,
-          fontWeight: '500' as const,
-          color: '#5C5750',
-        };
-      case 'numbered':
-        return {
-          ...baseStyle,
-          fontWeight: '500' as const,
-        };
-      case 'highlight':
-        return {
-          ...baseStyle,
-          fontWeight: '600' as const,
-          color: TarbiyahColors.accentPrimary,
-        };
-      default:
-        return baseStyle;
-    }
-  };
+    // Start with a small delay
+    animationRef.current = setTimeout(animate, 300);
+
+    return () => {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current);
+      }
+    };
+  }, [fullContent, animationKey, onAnimationComplete]);
 
   // Bubble scale animation
   const bubbleScale = useSharedValue(0.95);
@@ -341,49 +173,54 @@ function NoorChatBubbleComponent({
     transform: [{ scale: bubbleScale.value }],
   }));
 
-  // Calculate max height for bubble
-  const maxBubbleHeight = SCREEN_HEIGHT * TarbiyahChatTokens.bubble.maxHeightRatio;
-
   return (
     <Animated.View
-      key={animationKey}
       entering={FadeIn.duration(200)}
       style={[styles.container, bubbleAnimatedStyle]}
     >
-      <ImageBackground
-        source={require('../../../../assets/chat-component-for-tarbiayh-feature.png')}
-        style={[
-          styles.bubble,
-          {
-            minHeight: TarbiyahChatTokens.bubble.minHeight,
-            maxHeight: maxBubbleHeight,
-          },
-        ]}
-        imageStyle={styles.bubbleImage}
-        resizeMode="stretch"
-      >
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={[
-            styles.contentContainer,
-            { padding: adaptiveStyle.padding },
-          ]}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          {segments.map((segment, index) => (
-            <View key={`${animationKey}-${index}`} style={styles.segmentContainer}>
-              <TypewriterSegment
-                text={segment.text}
-                style={getSegmentStyle(segment.type)}
-                delay={getSegmentDelay(index)}
-                speed={TarbiyahChatTokens.animation.typewriterSpeed}
-                onComplete={() => handleSegmentComplete(index)}
-              />
-            </View>
-          ))}
-        </ScrollView>
-      </ImageBackground>
+      <View style={styles.bubbleWrapper}>
+        {/* Main bubble body - View with border */}
+        <View style={styles.bubble}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <Text
+              style={[
+                styles.contentText,
+                {
+                  fontSize: adaptiveStyle.fontSize,
+                  lineHeight: adaptiveStyle.lineHeight,
+                },
+              ]}
+            >
+              {displayedText}
+              {!isComplete && <Text style={styles.cursor}>|</Text>}
+            </Text>
+          </ScrollView>
+        </View>
+
+        {/* SVG Tail - isosceles triangle pointing downward, centered under bubble */}
+        <View style={styles.tailContainer}>
+          <Svg width="40" height="30" viewBox="0 0 40 30" style={styles.tailSvg}>
+            {/* Simple isosceles triangle: top-left to bottom-center to top-right */}
+            <Path
+              d="M 0 0 L 20 28 L 40 0 Z"
+              fill={BUBBLE_BG}
+            />
+            {/* Border strokes on the two visible edges (not top edge which overlaps bubble) */}
+            <Path
+              d="M 0 0 L 20 28 L 40 0"
+              fill="none"
+              stroke={BUBBLE_BORDER}
+              strokeWidth={BORDER_WIDTH}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        </View>
+      </View>
     </Animated.View>
   );
 }
@@ -392,31 +229,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     marginHorizontal: TarbiyahSpacing.screenGutter,
-    marginRight: TarbiyahSpacing.screenGutter + 60, // Make room for Noor character
+    marginRight: TarbiyahSpacing.screenGutter + 40, // Room for Noor
+    maxHeight: SCREEN_HEIGHT * 0.5,
+    minHeight: 180,
+  },
+  bubbleWrapper: {
+    flex: 1,
+    position: 'relative',
   },
   bubble: {
     flex: 1,
+    backgroundColor: BUBBLE_BG,
+    borderWidth: BORDER_WIDTH,
+    borderColor: BUBBLE_BORDER,
+    borderRadius: BORDER_RADIUS,
+    padding: 22,
+    // Shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 1, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  bubbleImage: {
-    borderRadius: TarbiyahChatTokens.bubble.borderRadius,
-  },
-  scrollContainer: {
-    flex: 1,
-  },
-  contentContainer: {
+  scrollContent: {
     flexGrow: 1,
   },
-  segmentContainer: {
-    marginBottom: TarbiyahSpacing.space12,
+  contentText: {
+    fontFamily: TarbiyahTypography.fontBody,
+    color: TarbiyahChatTokens.text.color,
   },
-  invisible: {
-    opacity: 0,
+  cursor: {
+    color: TarbiyahChatTokens.text.color,
+    opacity: 0.5,
   },
-  overlayText: {
+  // Position tail centered horizontally, overlapping bottom border
+  tailContainer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    bottom: -27, // Overlap the border slightly
+    alignSelf: 'center',
+    left: '50%',
+    marginLeft: -20, // Half of width (40/2) to center
+    zIndex: 1,
+  },
+  tailSvg: {
+    overflow: 'visible',
   },
 });
 

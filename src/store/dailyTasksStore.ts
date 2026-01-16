@@ -4,11 +4,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/services/supabase';
 import { format } from 'date-fns';
 import type { DailyTask, DailyFeedbackRating } from '@/types/models';
+import type { BadgeTier, CelebrationEvent } from '@/types/gamification';
 import {
   getTaskById,
   selectTasksForToday,
   calculateRecommendedTaskCount,
 } from '@/data/dailyTasks';
+import {
+  getCurrentBadge,
+  getNextBadge,
+  checkBadgeUnlock,
+  getUnlockedBadgeIds,
+} from '@/types/gamification';
 
 // New structure: Day Tasks + Nice to Have
 interface TodaysTasks {
@@ -37,6 +44,16 @@ interface DailyTasksState {
     tasksAssigned: number;
   }>;
 
+  // Gamification: HP & Badges
+  currentHP: number;
+  totalHPEarned: number;
+  currentBadgeTier: BadgeTier;
+  unlockedBadges: string[];
+
+  // Celebration queue
+  celebrationQueue: CelebrationEvent[];
+  lastCelebrationShown: string | null; // ISO timestamp
+
   // Loading state
   isLoading: boolean;
   error: string | null;
@@ -50,12 +67,20 @@ interface DailyTasksState {
   setChildAge: (age: 'baby' | 'toddler' | 'child' | 'all') => void;
   refreshTasks: (userId: string) => Promise<void>;
 
+  // Gamification actions
+  loadHPProgress: (userId: string) => Promise<void>;
+  awardHP: (userId: string, taskId: string, hpAmount: number) => Promise<void>;
+  queueCelebration: (event: CelebrationEvent) => void;
+  dequeueNextCelebration: () => CelebrationEvent | null;
+  markCelebrationShown: () => void;
+
   // Helpers
   getAllTodaysTasks: () => DailyTask[];
   getCompletedCount: () => number;
   getTotalCount: () => number;
   isTaskCompleted: (taskId: string) => boolean;
   hasFeedbackForToday: () => boolean;
+  getHPToNextBadge: () => number;
 
   reset: () => void;
 }
@@ -74,6 +99,12 @@ export const useDailyTasksStore = create<DailyTasksState>()(
       preferredNiceToHaveCount: 2,
       childAge: 'all',
       recentFeedback: [],
+      currentHP: 0,
+      totalHPEarned: 0,
+      currentBadgeTier: 'seedling',
+      unlockedBadges: [],
+      celebrationQueue: [],
+      lastCelebrationShown: null,
       isLoading: false,
       error: null,
 
@@ -254,6 +285,11 @@ export const useDailyTasksStore = create<DailyTasksState>()(
 
           if (error) throw error;
 
+          // Find the task to get HP value
+          const state = get();
+          const allTasks = state.getAllTodaysTasks();
+          const completedTask = allTasks.find((t) => t.id === taskId);
+
           set((state) => {
             const newCompletions = { ...state.todayCompletions, [taskId]: true };
             const allTasks = state.getAllTodaysTasks();
@@ -266,6 +302,22 @@ export const useDailyTasksStore = create<DailyTasksState>()(
               completionPercentage: percentage,
             };
           });
+
+          // Award HP if task has hp_value
+          if (completedTask?.hp_value) {
+            await get().awardHP(userId, taskId, completedTask.hp_value);
+
+            // Queue task completion celebration
+            const { selectCelebration } = await import('@/types/gamification');
+            get().queueCelebration({
+              type: 'task_complete',
+              animation: selectCelebration(),
+              data: {
+                hp_gained: completedTask.hp_value,
+                task_title: completedTask.title,
+              },
+            });
+          }
         } catch (error: any) {
           set({ error: error.message || 'Failed to complete task' });
         }
@@ -412,6 +464,154 @@ export const useDailyTasksStore = create<DailyTasksState>()(
         return state.recentFeedback.some((f) => f.date === today);
       },
 
+      // Load HP progress from Supabase
+      loadHPProgress: async (userId: string) => {
+        try {
+          const { data, error } = await supabase
+            .from('user_hp_progress')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+          if (error) {
+            // PGRST116 = no rows returned (expected for new users)
+            // PGRST205 = table doesn't exist (migrations not run yet)
+            if (error.code !== 'PGRST116' && error.code !== 'PGRST205') {
+              throw error;
+            }
+
+            // Silently initialize with defaults if table doesn't exist or no data
+            set({
+              currentHP: 0,
+              totalHPEarned: 0,
+              currentBadgeTier: 'seedling',
+              unlockedBadges: [],
+            });
+            return;
+          }
+
+          if (data) {
+            const currentBadge = getCurrentBadge(data.total_hp_earned);
+            set({
+              currentHP: data.current_hp,
+              totalHPEarned: data.total_hp_earned,
+              currentBadgeTier: data.current_badge_tier,
+              unlockedBadges: data.badges_unlocked || [],
+            });
+          } else {
+            // Initialize for new user
+            set({
+              currentHP: 0,
+              totalHPEarned: 0,
+              currentBadgeTier: 'seedling',
+              unlockedBadges: [],
+            });
+          }
+        } catch (error: any) {
+          // Silently fail - tables may not exist yet
+          console.warn('HP progress not available (tables may not be migrated)');
+        }
+      },
+
+      // Award HP and check for badge unlock
+      awardHP: async (userId: string, taskId: string, hpAmount: number) => {
+        try {
+          const state = get();
+          const oldTotalHP = state.totalHPEarned;
+          const newTotalHP = oldTotalHP + hpAmount;
+
+          // Update local state immediately (optimistic)
+          set({
+            currentHP: state.currentHP + hpAmount,
+            totalHPEarned: newTotalHP,
+          });
+
+          // Check for badge unlock
+          const unlockedBadge = checkBadgeUnlock(oldTotalHP, newTotalHP);
+          if (unlockedBadge) {
+            const newUnlockedBadges = getUnlockedBadgeIds(newTotalHP);
+            set({
+              currentBadgeTier: unlockedBadge.tier,
+              unlockedBadges: newUnlockedBadges,
+            });
+
+            // Queue badge unlock celebration
+            get().queueCelebration({
+              type: 'badge_unlock',
+              animation: 'confetti', // Special animation for badges
+              data: { badge: unlockedBadge, hp_gained: hpAmount },
+            });
+          }
+
+          // Persist to Supabase (if tables exist)
+          const { error } = await supabase.from('user_hp_progress').upsert(
+            {
+              user_id: userId,
+              current_hp: state.currentHP + hpAmount,
+              total_hp_earned: newTotalHP,
+              current_badge_tier: unlockedBadge?.tier || state.currentBadgeTier,
+              badges_unlocked: unlockedBadge
+                ? getUnlockedBadgeIds(newTotalHP)
+                : state.unlockedBadges,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id' }
+          );
+
+          // PGRST205 = table doesn't exist, silently ignore
+          if (error && error.code !== 'PGRST205') {
+            throw error;
+          }
+
+          // Log transaction for analytics (if table exists)
+          const { error: logError } = await supabase.from('hp_transaction_log').insert({
+            user_id: userId,
+            task_id: taskId,
+            hp_gained: hpAmount,
+            transaction_date: format(new Date(), 'yyyy-MM-dd'),
+          });
+
+          // Silently ignore if table doesn't exist
+          if (logError && logError.code !== 'PGRST205') {
+            console.warn('Failed to log HP transaction:', logError.message);
+          }
+        } catch (error: any) {
+          // Only log real errors, not missing table errors
+          if (error.code !== 'PGRST205') {
+            console.warn('HP award failed (tables may not be migrated):', error.message);
+          }
+        }
+      },
+
+      // Queue celebration for display
+      queueCelebration: (event: CelebrationEvent) => {
+        set((state) => ({
+          celebrationQueue: [...state.celebrationQueue, event],
+        }));
+      },
+
+      // Dequeue next celebration
+      dequeueNextCelebration: () => {
+        const state = get();
+        if (state.celebrationQueue.length === 0) return null;
+
+        const [next, ...rest] = state.celebrationQueue;
+        set({ celebrationQueue: rest });
+        return next;
+      },
+
+      // Mark celebration as shown (updates timestamp)
+      markCelebrationShown: () => {
+        set({ lastCelebrationShown: new Date().toISOString() });
+      },
+
+      // Get HP needed for next badge
+      getHPToNextBadge: () => {
+        const state = get();
+        const nextBadge = getNextBadge(state.totalHPEarned);
+        return nextBadge ? nextBadge.hp_threshold - state.totalHPEarned : 0;
+      },
+
       // Reset state
       reset: () =>
         set({
@@ -424,6 +624,12 @@ export const useDailyTasksStore = create<DailyTasksState>()(
           preferredDayTaskCount: 3,
           preferredNiceToHaveCount: 2,
           recentFeedback: [],
+          currentHP: 0,
+          totalHPEarned: 0,
+          currentBadgeTier: 'seedling',
+          unlockedBadges: [],
+          celebrationQueue: [],
+          lastCelebrationShown: null,
           isLoading: false,
           error: null,
         }),
@@ -436,6 +642,10 @@ export const useDailyTasksStore = create<DailyTasksState>()(
         preferredNiceToHaveCount: state.preferredNiceToHaveCount,
         childAge: state.childAge,
         recentFeedback: state.recentFeedback,
+        currentHP: state.currentHP,
+        totalHPEarned: state.totalHPEarned,
+        currentBadgeTier: state.currentBadgeTier,
+        unlockedBadges: state.unlockedBadges,
       }),
     }
   )

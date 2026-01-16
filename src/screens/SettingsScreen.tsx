@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, OutlineButton } from '@/components/common/Button';
 import { useAuthStore } from '@/store/authStore';
+import type { RootStackParamList } from '@/navigation/types';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF7ED' },
@@ -22,6 +25,7 @@ const styles = StyleSheet.create({
 });
 
 export function SettingsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [isResetting, setIsResetting] = useState(false);
   const profile = useAuthStore((state) => state.profile);
   const user = useAuthStore((state) => state.user);
@@ -85,6 +89,12 @@ export function SettingsScreen() {
             title="Redo Onboarding"
             onPress={handleRedoOnboarding}
             loading={isResetting}
+            fullWidth
+          />
+          <View style={{ height: 12 }} />
+          <OutlineButton
+            title="Component Preview"
+            onPress={() => navigation.navigate('ComponentPreview')}
             fullWidth
           />
         </View>

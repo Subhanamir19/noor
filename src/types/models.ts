@@ -230,6 +230,13 @@ export interface DailyTask {
   age_appropriate: 'baby' | 'toddler' | 'child' | 'all';
   tags: string[];
   icon?: string; // Emoji icon for the task
+
+  // Gamification fields
+  hp_value: number; // HP reward (5/10/15/20/25/30)
+  time_estimate: import('./gamification').TimeEstimate; // '<1min' | '2-3min' | '5min' | '10min+'
+  priority_level: import('./gamification').PriorityLevel; // 'normal' | 'important' | 'critical'
+  benefit_text?: string; // "Why this matters" text for expansion
+  is_custom?: boolean; // User-created task
 }
 
 export interface DailyTaskCompletion {
@@ -272,6 +279,32 @@ export interface UserTaskPreference {
   preferred_task_count: number; // 3, 4, or 5
   difficulty_score: number; // 0-100, higher = can handle more
   last_updated: string;
+}
+
+// Custom Daily Tasks (user-created)
+export interface CustomDailyTask {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  hp_value: number;
+  time_estimate: import('./gamification').TimeEstimate;
+  priority_level: import('./gamification').PriorityLevel;
+  icon?: string;
+  is_active: boolean; // Currently in rotation
+  created_at: string;
+  updated_at: string;
+}
+
+// Task Rotation Configuration (toggle app tasks on/off)
+export interface TaskRotationConfig {
+  id: string;
+  user_id: string;
+  task_id: string; // References DailyTask.id or CustomDailyTask.id
+  is_active: boolean;
+  is_custom: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // =====================================================

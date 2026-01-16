@@ -22,7 +22,7 @@ interface NoorCharacterProps {
   isTyping?: boolean;
 }
 
-function NoorCharacterComponent({ isTyping = false }: NoorCharacterProps) {
+function NoorCharacterComponent({ isTyping: _isTyping = false }: NoorCharacterProps) {
   const scale = useSharedValue(1);
 
   // Gentle breathing animation - continuous subtle pulse

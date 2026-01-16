@@ -26,6 +26,7 @@ import { SettingsScreen } from '@/screens/SettingsScreen';
 import { TarbiyahScreen } from '@/screens/TarbiyahScreen';
 import { TodayScreen } from '@/screens/TodayScreen';
 import { TraitPracticeListScreen } from '@/screens/TraitPracticeListScreen';
+import { ComponentPreviewScreen } from '@/screens/ComponentPreviewScreen';
 import {
   ChatIntroScreen,
   DailyTasksIntroScreen,
@@ -268,6 +269,14 @@ export function RootNavigator() {
             <RootStack.Screen
               name="Settings"
               component={SettingsScreen}
+              options={{
+                animation: 'slide_from_bottom',
+                presentation: 'modal',
+              }}
+            />
+            <RootStack.Screen
+              name="ComponentPreview"
+              component={ComponentPreviewScreen}
               options={{
                 animation: 'slide_from_bottom',
                 presentation: 'modal',

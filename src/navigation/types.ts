@@ -27,4 +27,5 @@ export type RootStackParamList = {
   TraitPracticeList: { traitId: string };
   Tarbiyah: { lessonId?: string } | undefined;
   Settings: undefined;
+  ComponentPreview: undefined;
 };

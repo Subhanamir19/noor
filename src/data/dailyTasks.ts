@@ -11,6 +11,8 @@
  */
 
 import type { DailyTask, DailyTaskCategory, DailyTaskType, DailyTaskDisplayType } from '@/types/models';
+import type { TimeEstimate, PriorityLevel } from '@/types/gamification';
+import { calculateTaskHP } from '@/utils/hpCalculator';
 
 // Categories that are learning-focused (Day Tasks)
 const LEARNING_CATEGORIES: DailyTaskCategory[] = [
@@ -120,6 +122,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['dua', 'love', 'morning'],
     icon: '🤲',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Making dua builds your spiritual connection and models reliance on Allah for your children.',
   },
   {
     id: 'task_2',
@@ -132,6 +138,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['salam', 'greeting', 'morning'],
     icon: '✋',
+    hp_value: 5,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Regular greetings with salam build respectful communication habits and teach that every interaction begins with peace.',
   },
   {
     id: 'task_3',
@@ -144,6 +154,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['salam', 'teaching', 'adab'],
     icon: '👋',
+    hp_value: 15,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Teaching salam properly instills Islamic etiquette and helps children understand that greetings are prayers for peace and blessings.',
   },
   {
     id: 'task_4',
@@ -156,6 +170,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['hug', 'love', 'morning', 'connection'],
     icon: '🤗',
+    hp_value: 5,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Morning hugs create emotional security and model the Prophet\'s affection toward children, building strong parent-child bonds.',
   },
   {
     id: 'task_5',
@@ -168,6 +186,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['hug', 'love', 'connection'],
     icon: '🤗',
+    hp_value: 5,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Spontaneous affection throughout the day reinforces unconditional love and emotional availability, following the Prophetic example.',
   },
   {
     id: 'task_6',
@@ -180,6 +202,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['love', 'aqeedah', 'teaching'],
     icon: '❤️',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Verbalizing love for Allah nurtures spiritual connection and teaches children that faith is expressed through both heart and tongue.',
   },
   {
     id: 'task_7',
@@ -192,6 +218,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['presence', 'love', 'connection'],
     icon: '👁️',
+    hp_value: 25,
+    time_estimate: '10min+' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Dedicated one-on-one time builds trust and self-worth while demonstrating that they are valued and heard.',
   },
 
   // HADITH & PROPHETIC TEACHINGS
@@ -206,6 +236,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['hadith', 'teaching', 'sunnah'],
     icon: '📜',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Sharing hadith daily connects children to the Prophet\'s teachings and builds their understanding of practical Islamic guidance.',
   },
   {
     id: 'task_9',
@@ -218,6 +252,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['seerah', 'prophets', 'character'],
     icon: '🌟',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Learning the Prophet\'s character provides concrete role models for good behavior and inspires love for the Prophet (SAW).',
   },
   {
     id: 'task_10',
@@ -230,6 +268,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['seerah', 'prophets', 'teaching'],
     icon: '⭐',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Practicing Prophetic qualities transforms knowledge into action and helps children embody Islamic character traits.',
   },
   {
     id: 'task_11',
@@ -242,6 +284,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['hadith', 'teaching', 'adab'],
     icon: '📜',
+    hp_value: 15,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Using hadith for correction teaches that guidance comes from Allah and the Prophet, not just parental preference.',
   },
 
   // POSITIVE REINFORCEMENT & ADHKAR
@@ -256,6 +302,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['encouragement', 'positive', 'love'],
     icon: '⭐',
+    hp_value: 5,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Specific praise reinforces positive behavior and builds confidence while teaching children to recognize goodness in themselves.',
   },
   {
     id: 'task_13',
@@ -268,6 +318,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['istighfar', 'adhkar', 'teaching'],
     icon: '🤲',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Modeling istighfar teaches humility and that seeking Allah\'s forgiveness is a natural response to mistakes.',
   },
   {
     id: 'task_14',
@@ -280,6 +334,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['mashallah', 'adhkar', 'gratitude'],
     icon: '✨',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Saying MashAllah attributes blessings to Allah and teaches that all good comes from Him, protecting against envy.',
   },
   {
     id: 'task_15',
@@ -292,6 +350,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['alhamdulillah', 'adhkar', 'gratitude'],
     icon: '🙏',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Frequent gratitude through Alhamdulillah cultivates a thankful heart and awareness of Allah\'s countless blessings.',
   },
   {
     id: 'task_16',
@@ -304,6 +366,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['gratitude', 'dua', 'teaching'],
     icon: '🙏',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Shared gratitude moments deepen spiritual awareness and help children notice and appreciate Allah\'s daily blessings.',
   },
 
   // EATING & FOOD ETIQUETTE
@@ -318,6 +384,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['dua', 'eating', 'sunnah'],
     icon: '🤲',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Dua before meals establishes a routine of remembering Allah and seeking His blessing in everyday sustenance.',
   },
   {
     id: 'task_18',
@@ -330,6 +400,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['bismillah', 'eating', 'sunnah'],
     icon: 'بسم',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Saying Bismillah before eating builds the habit of beginning actions with Allah\'s name and seeking His barakah.',
   },
   {
     id: 'task_19',
@@ -342,6 +416,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['bismillah', 'teaching', 'sunnah'],
     icon: 'بسم',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching Bismillah for all actions helps children internalize that every moment begins with Allah\'s name and blessing.',
   },
   {
     id: 'task_20',
@@ -354,6 +432,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['alhamdulillah', 'eating', 'gratitude'],
     icon: '🙏',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Thanking Allah after meals completes the cycle of gratitude and reinforces that sustenance is a blessing from Him.',
   },
   {
     id: 'task_21',
@@ -366,6 +448,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['food', 'teaching', 'gratitude'],
     icon: '🥗',
+    hp_value: 15,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Teaching against food waste instills gratitude and responsibility while connecting blessings to stewardship in Islam.',
   },
   {
     id: 'task_22',
@@ -378,6 +464,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['eating', 'sunnah', 'adab'],
     icon: '🍽️',
+    hp_value: 15,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Following Prophetic eating etiquette teaches practical Sunnah and cultivates contentment with what Allah provides.',
   },
   {
     id: 'task_23',
@@ -390,6 +480,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['eating', 'manners', 'adab'],
     icon: '🍴',
+    hp_value: 15,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Modeling good table manners teaches Islamic adab and shows that even simple acts reflect our character.',
   },
 
   // MODESTY & HALAL
@@ -404,6 +498,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['modesty', 'clothing', 'teaching'],
     icon: '👗',
+    hp_value: 5,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Daily attention to modest clothing builds early awareness of Islamic values and self-respect from a young age.',
   },
   {
     id: 'task_25',
@@ -416,6 +514,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['halal', 'teaching', 'aqeedah'],
     icon: '✓',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching halal and haram establishes moral boundaries rooted in Allah\'s guidance, creating a framework for lifelong decisions.',
   },
 
   // PRAYER & SALAH
@@ -430,6 +532,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['salah', 'prayer', 'routine'],
     icon: '🕌',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Announcing prayer times normalizes salah in daily life and builds awareness of this fundamental pillar of Islam.',
   },
   {
     id: 'task_27',
@@ -442,6 +548,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['salah', 'prayer', 'teaching'],
     icon: '🕌',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Early prayer reminders teach time management and prioritizing salah, establishing it as central to the daily schedule.',
   },
   {
     id: 'task_28',
@@ -454,6 +564,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['salah', 'teaching', 'aqeedah'],
     icon: '🕌',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Framing salah as meeting Allah transforms prayer from obligation to privilege and deepens spiritual connection.',
   },
   {
     id: 'task_29',
@@ -466,6 +580,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['wudu', 'teaching', 'salah'],
     icon: '💧',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching wudu properly prepares children for salah and instills the importance of ritual purity in worship.',
   },
   {
     id: 'task_30',
@@ -478,6 +596,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['wudu', 'teaching', 'salah'],
     icon: '💧',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Practicing wudu together builds confidence and turns preparation for prayer into a shared spiritual moment.',
   },
   {
     id: 'task_31',
@@ -490,6 +612,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['dua', 'bathroom', 'sunnah'],
     icon: '🚿',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching bathroom duas shows that every aspect of life has adab and that we seek Allah\'s protection in all moments.',
   },
   {
     id: 'task_32',
@@ -502,6 +628,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['dua', 'teaching', 'memorization'],
     icon: '🤲',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Daily duas create a rhythm of remembrance and teach that Allah is part of every transition and moment.',
   },
 
   // ISLAMIC FOUNDATIONS
@@ -516,6 +646,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['shahadah', 'aqeedah', 'teaching'],
     icon: '☝️',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Understanding the Shahadah lays the foundation of Islamic belief and helps children grasp the core of their faith.',
   },
   {
     id: 'task_34',
@@ -528,6 +662,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['pillars', 'aqeedah', 'teaching'],
     icon: '🕋',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching the Five Pillars provides the structural framework of Islam and shows what it means to be Muslim.',
   },
   {
     id: 'task_35',
@@ -540,6 +678,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['speech', 'adab', 'manners'],
     icon: '💬',
+    hp_value: 20,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching kind speech builds honesty and compassion while showing that words carry weight in Islam and affect others deeply.',
   },
   {
     id: 'task_36',
@@ -552,6 +694,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['modesty', 'teaching', 'character'],
     icon: '🌸',
+    hp_value: 15,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Gentle teaching about modesty builds dignity and self-respect while planting seeds of Islamic values early.',
   },
   {
     id: 'task_37',
@@ -564,6 +710,10 @@ const CORE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['hereafter', 'aqeedah', 'teaching'],
     icon: '🌙',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Teaching about the Hereafter connects daily actions to eternal consequences and motivates righteousness through hope in Jannah.',
   },
 ];
 
@@ -583,6 +733,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['stories', 'reading', 'teaching'],
     icon: '📕',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Islamic stories make faith tangible and memorable while teaching values through engaging narratives children connect with.',
   },
   {
     id: 'task_39',
@@ -595,6 +749,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['stories', 'seerah', 'prophets'],
     icon: '⭐',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Stories of the Sahaba provide real-life examples of faith and sacrifice, inspiring children to follow in their footsteps.',
   },
   {
     id: 'task_40',
@@ -607,6 +765,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['quran', 'reading', 'teaching'],
     icon: '📖',
+    hp_value: 25,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Following along with the Quran builds familiarity with Arabic script and creates a special bond with Allah\'s words.',
   },
   {
     id: 'task_41',
@@ -619,6 +781,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['names_of_allah', 'aqeedah', 'teaching'],
     icon: '✨',
+    hp_value: 25,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Learning Allah\'s Names deepens understanding of His attributes and strengthens the personal relationship with the Creator.',
   },
   {
     id: 'task_42',
@@ -631,6 +797,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['dua', 'empathy', 'kindness'],
     icon: '🤲',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Making dua for others cultivates empathy and teaches that caring for the ummah is part of being Muslim.',
   },
   {
     id: 'task_43',
@@ -643,6 +813,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['dua', 'memorization', 'teaching'],
     icon: '🤲',
+    hp_value: 25,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Learning new duas expands spiritual vocabulary and gives children more ways to communicate with Allah throughout life.',
   },
   {
     id: 'task_44',
@@ -655,6 +829,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['quran', 'memorization', 'ayatul_kursi'],
     icon: '📖',
+    hp_value: 25,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Memorizing Ayat-ul-Kursi gives children a powerful protection and connects them to the greatest verse in the Quran.',
   },
   {
     id: 'task_45',
@@ -667,6 +845,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['baking', 'dua', 'bismillah'],
     icon: '🧁',
+    hp_value: 25,
+    time_estimate: '10min+' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Baking together integrates Islamic remembrance into everyday activities and creates joyful memories tied to faith.',
   },
   {
     id: 'task_46',
@@ -679,6 +861,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['kindness', 'empathy', 'character'],
     icon: '🌻',
+    hp_value: 25,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Practicing kindness together transforms values into actions and shows that Islam is lived through compassion toward others.',
   },
   {
     id: 'task_47',
@@ -691,6 +877,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['sadaqah', 'kindness', 'teaching'],
     icon: '💰',
+    hp_value: 25,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'important' as PriorityLevel,
+    benefit_text: 'Giving sadaqah together teaches generosity and the joy of helping others while building habits of charity from a young age.',
   },
   {
     id: 'task_48',
@@ -703,6 +893,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['video', 'teaching', 'stories'],
     icon: '📺',
+    hp_value: 10,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Educational videos make Islamic concepts accessible and engaging while providing visual learning for young children.',
   },
   {
     id: 'task_49',
@@ -715,6 +909,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['nasheeds', 'teaching'],
     icon: '🎵',
+    hp_value: 10,
+    time_estimate: '<1min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Background nasheeds create an Islamic atmosphere and reinforce faith through gentle, repeated exposure to Islamic content.',
   },
   {
     id: 'task_50',
@@ -727,6 +925,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['outside', 'gratitude'],
     icon: '🏃',
+    hp_value: 25,
+    time_estimate: '10min+' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Outdoor time connects children to Allah\'s creation and provides opportunities to reflect on His signs in nature.',
   },
   {
     id: 'task_51',
@@ -739,6 +941,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['teeth', 'hygiene', 'sunnah'],
     icon: '🦷',
+    hp_value: 10,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Brushing teeth together reinforces the Islamic emphasis on cleanliness and connects daily hygiene to following the Sunnah.',
   },
   {
     id: 'task_52',
@@ -751,6 +957,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['handwashing', 'hygiene', 'teaching'],
     icon: '🧴',
+    hp_value: 10,
+    time_estimate: '2-3min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Teaching proper hand washing instills the Islamic value of cleanliness and shows that hygiene is part of faith.',
   },
   {
     id: 'task_53',
@@ -763,6 +973,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'all',
     tags: ['cleaning', 'responsibility', 'chores'],
     icon: '🧽',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Cleaning together teaches responsibility and respect for belongings while modeling that orderliness is part of Islamic character.',
   },
   {
     id: 'task_54',
@@ -775,6 +989,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['dressing', 'responsibility'],
     icon: '👚',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Encouraging self-dressing builds independence and confidence while teaching that taking care of oneself is important in Islam.',
   },
   {
     id: 'task_55',
@@ -787,6 +1005,10 @@ const NICE_TO_HAVE_TASKS: DailyTask[] = [
     age_appropriate: 'toddler',
     tags: ['patience', 'sabr', 'timer'],
     icon: '⏱️',
+    hp_value: 20,
+    time_estimate: '5min' as TimeEstimate,
+    priority_level: 'normal' as PriorityLevel,
+    benefit_text: 'Practicing patience through timers teaches sabr in a concrete way and builds emotional regulation through Islamic values.',
   },
 ];
 

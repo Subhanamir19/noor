@@ -416,9 +416,9 @@ export const TarbiyahRgba = {
   repairBg: rgba(TarbiyahColors.accentTertiary, 0.1),
   repairBorder: rgba(TarbiyahColors.accentTertiary, 0.25),
 
-  // Progress dots
-  progressInactive: rgba(TarbiyahColors.white, 0.2),
-  progressLine: rgba(TarbiyahColors.white, 0.1),
+  // Progress dots (dark colors for light backgrounds)
+  progressInactive: rgba(TarbiyahColors.black, 0.15),
+  progressLine: rgba(TarbiyahColors.black, 0.08),
 
   // Arabic glow
   arabicGlow: rgba(TarbiyahColors.textArabic, 0.15),
